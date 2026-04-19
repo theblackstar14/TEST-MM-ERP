@@ -3,67 +3,77 @@ const { useState, useEffect } = React;
 const { fmtPEN, fmtInt, fmtPct } = ERP_DATA;
 
 // =================== SEACE (scraper) ===================
+const API = window.SEACE_API || "";
+
 function SeacePage() {
   const [running, setRunning] = useState(false);
-  const [progress, setProgress] = useState(100);
-  const [log, setLog] = useState([
-    { t: '14:02:18', lvl: 'info', msg: 'Iniciando scraper SEACE v4.2.1' },
-    { t: '14:02:19', lvl: 'info', msg: 'Conectando a https://prodapp.seace.gob.pe/...' },
-    { t: '14:02:21', lvl: 'info', msg: 'Autenticación con certificado OK' },
-    { t: '14:02:22', lvl: 'info', msg: 'Query: objeto="OBRAS" regiones=["LIMA","CALLAO"] estado=CONVOCADA' },
-    { t: '14:02:25', lvl: 'ok', msg: '284 convocatorias encontradas · filtrando por rubro y monto' },
-    { t: '14:02:27', lvl: 'info', msg: 'Descargando bases técnicas (PDF + anexos)' },
-    { t: '14:02:34', lvl: 'ok', msg: '38 licitaciones coinciden con perfil MMHIGHMETRIK' },
-    { t: '14:02:35', lvl: 'ai', msg: 'Copiloto IA: clasificando viabilidad por histórico de la empresa' },
-    { t: '14:02:38', lvl: 'ok', msg: '12 licitaciones con score ≥ 70 · importadas al pipeline' },
-    { t: '14:02:39', lvl: 'warn', msg: '3 convocatorias requieren experiencia no documentada en ERP' },
-    { t: '14:02:40', lvl: 'info', msg: 'Scraper finalizado · próxima ejecución en 6h' },
-  ]);
-  const [selected, setSelected] = useState('SEA-2026-00214');
+  const [progress, setProgress] = useState(0);
+  const [log, setLog] = useState([]);
+  const [licitaciones, setLicitaciones] = useState([]);
+  const [selected, setSelected] = useState(null);
+  const [detalle, setDetalle] = useState(null);
+  const [loadingDet, setLoadingDet] = useState(false);
 
-  const licitaciones = [
-    { id: 'SEA-2026-00214', entidad: 'Municipalidad de San Borja', obj: 'Mejoramiento de pistas y veredas Av. San Luis', monto: 2840000, cierre: '22 Abr 26', region: 'LIMA', score: 92, match: 'alta', items: ['Pavimentación', 'Señalización', 'Veredas'] },
-    { id: 'SEA-2026-00208', entidad: 'ESSALUD — Red Rebagliati', obj: 'Remodelación de servicios higiénicos Hospital Rebagliati', monto: 680000, cierre: '19 Abr 26', region: 'LIMA', score: 88, match: 'alta', items: ['Demolición', 'Instalaciones sanitarias', 'Acabados'] },
-    { id: 'SEA-2026-00201', entidad: 'MINEDU — UGEL 03', obj: 'Mantenimiento integral 14 IIEE Lima Metropolitana', monto: 1240000, cierre: '25 Abr 26', region: 'LIMA', score: 85, match: 'alta', items: ['Pintura', 'Techos', 'Cerrajería'] },
-    { id: 'SEA-2026-00198', entidad: 'Gobierno Regional Callao', obj: 'Construcción de losa deportiva multifuncional', monto: 480000, cierre: '24 Abr 26', region: 'CALLAO', score: 81, match: 'media' },
-    { id: 'SEA-2026-00192', entidad: 'Municipalidad de Miraflores', obj: 'Remodelación auditorio municipal', monto: 920000, cierre: '28 Abr 26', region: 'LIMA', score: 78, match: 'media' },
-    { id: 'SEA-2026-00189', entidad: 'SEDAPAL', obj: 'Instalación de tuberías matrices en Villa El Salvador', monto: 1680000, cierre: '02 May 26', region: 'LIMA', score: 74, match: 'media' },
-    { id: 'SEA-2026-00185', entidad: 'MINSA — DIRIS Lima Sur', obj: 'Adecuación de centros de salud · 4 establecimientos', monto: 840000, cierre: '30 Abr 26', region: 'LIMA', score: 72, match: 'media' },
-    { id: 'SEA-2026-00181', entidad: 'Municipalidad de La Molina', obj: 'Mantenimiento de parques y áreas verdes', monto: 240000, cierre: '20 Abr 26', region: 'LIMA', score: 70, match: 'media' },
-    { id: 'SEA-2026-00178', entidad: 'PRONIED', obj: 'Sustitución de IIEE 1140 — Pachacamac', monto: 3420000, cierre: '05 May 26', region: 'LIMA', score: 66, match: 'baja' },
-    { id: 'SEA-2026-00174', entidad: 'ESSALUD — Red Almenara', obj: 'Readecuación de consultorios externos', monto: 520000, cierre: '26 Abr 26', region: 'LIMA', score: 63, match: 'baja' },
-    { id: 'SEA-2026-00169', entidad: 'Municipalidad del Callao', obj: 'Mejoramiento servicios higiénicos mercado modelo', monto: 180000, cierre: '21 Abr 26', region: 'CALLAO', score: 58, match: 'baja' },
-    { id: 'SEA-2026-00165', entidad: 'Gobierno Regional Lima', obj: 'Conservación vial red departamental', monto: 4800000, cierre: '10 May 26', region: 'LIMA', score: 45, match: 'baja' },
-  ];
+  const ts = () => new Date().toLocaleTimeString('es-PE');
+  const pushLog = (lvl, msg) => setLog(l => [...l, { t: ts(), lvl, msg }]);
 
-  const sel = licitaciones.find(l => l.id === selected) || licitaciones[0];
+  const mapItem = (r) => ({
+    id: r.nomenclatura,
+    nidProceso: r.nidProceso,
+    nidConvocatoria: r.nidConvocatoria,
+    entidad: r.entidad,
+    obj: r.descripcion || r.objeto,
+    objeto: r.objeto,
+    fecha: r.fecha_publicacion,
+    etapa: r.etapa,
+    monto: 0,
+    cierre: '—',
+    region: '—',
+    score: 0,
+    match: 'media',
+  });
 
-  const startScrape = () => {
+  const startScrape = async () => {
     setRunning(true);
-    setProgress(0);
-    setLog([{ t: new Date().toLocaleTimeString('es-PE'), lvl: 'info', msg: 'Iniciando scraper SEACE v4.2.1' }]);
-    let p = 0;
-    const steps = [
-      'Conectando a prodapp.seace.gob.pe...',
-      'Autenticación con certificado OK',
-      'Query: OBRAS · LIMA · CONVOCADA',
-      '284 convocatorias encontradas',
-      'Descargando bases técnicas...',
-      '38 licitaciones coinciden con perfil',
-      'IA clasificando viabilidad por histórico',
-      '12 con score ≥ 70 · importadas',
-      'Scraper finalizado · próxima run 6h',
-    ];
-    const iv = setInterval(() => {
-      p += 100 / steps.length;
-      const i = Math.floor(p / (100 / steps.length)) - 1;
-      if (i >= 0 && i < steps.length) {
-        setLog(l => [...l, { t: new Date().toLocaleTimeString('es-PE'), lvl: i === 6 ? 'ai' : i === steps.length - 1 ? 'ok' : 'info', msg: steps[i] }]);
-      }
-      setProgress(Math.min(p, 100));
-      if (p >= 100) { clearInterval(iv); setRunning(false); }
-    }, 350);
+    setProgress(10);
+    setLog([{ t: ts(), lvl: 'info', msg: 'Conectando a API SEACE…' }]);
+    try {
+      setProgress(30);
+      pushLog('info', `GET ${API}/api/v1/procesos`);
+      const r = await fetch(`${API}/api/v1/procesos`);
+      setProgress(70);
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      const json = await r.json();
+      const items = (json.data || []).map(mapItem);
+      setLicitaciones(items);
+      setSelected(items[0]?.nidProceso || null);
+      setProgress(100);
+      pushLog('ok', `${items.length} procesos cargados${json.cached ? ' (cache)' : ''}`);
+      pushLog('info', 'Scraper finalizado');
+    } catch (e) {
+      pushLog('warn', 'Error: ' + e.message);
+    } finally {
+      setRunning(false);
+    }
   };
+
+  useEffect(() => { startScrape(); }, []);
+
+  useEffect(() => {
+    if (!selected) { setDetalle(null); return; }
+    const item = licitaciones.find(l => l.nidProceso === selected);
+    if (!item) return;
+    setLoadingDet(true);
+    setDetalle(null);
+    const url = `${API}/api/v1/procesos/${selected}?nomenclatura=${encodeURIComponent(item.id)}`;
+    fetch(url)
+      .then(r => r.json())
+      .then(j => { setDetalle(j.data || null); pushLog('ok', `Detalle ${item.id}${j.cached ? ' (cache)' : ''}`); })
+      .catch(e => pushLog('warn', 'Detalle err: ' + e.message))
+      .finally(() => setLoadingDet(false));
+  }, [selected]);
+
+  const sel = licitaciones.find(l => l.nidProceso === selected) || licitaciones[0];
 
   return (
     <div className="ws-inner wide" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
@@ -93,11 +103,11 @@ function SeacePage() {
           </div>
         )}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 12, marginTop: 14 }}>
-          <QuickStat l="Convocatorias nuevas" v="38" d="últimas 24h" />
-          <QuickStat l="Match alta prioridad" v="3" d="score ≥ 85" color="var(--ok)" />
-          <QuickStat l="Monto total ofertable" v="S/ 17.8M" d="sumatoria bases" />
-          <QuickStat l="Próximo cierre" v="3 días" d="SEA-2026-00208" color="var(--warn-ink)" />
-          <QuickStat l="Última ejecución" v="14:02:40" d="hoy · éxito" />
+          <QuickStat l="Procesos cargados" v={String(licitaciones.length)} d="vía API SEACE" />
+          <QuickStat l="Seleccionado" v={sel?.id || '—'} d={sel?.entidad?.slice(0, 28) || ''} color="var(--accent)" />
+          <QuickStat l="Etapa actual" v={sel?.etapa || '—'} d="" />
+          <QuickStat l="Documentos" v={String(detalle?.documentos?.length || 0)} d={detalle ? 'cargados' : 'sin cargar'} color="var(--ok)" />
+          <QuickStat l="Última ejecución" v={log[log.length-1]?.t || '—'} d={running ? 'corriendo…' : 'idle'} />
         </div>
       </div>
 
@@ -106,34 +116,30 @@ function SeacePage() {
           <table>
             <thead>
               <tr>
-                <th style={{ width: 130 }}>Código</th>
-                <th>Entidad / Objeto</th>
-                <th style={{ width: 80 }}>Región</th>
-                <th style={{ width: 120 }} className="num-c">Monto S/</th>
-                <th style={{ width: 90 }}>Cierre</th>
-                <th style={{ width: 110 }}>Match IA</th>
-                <th style={{ width: 40 }}></th>
+                <th style={{ width: 180 }}>Nomenclatura</th>
+                <th>Entidad / Descripción</th>
+                <th style={{ width: 90 }}>Objeto</th>
+                <th style={{ width: 100 }} className="num-c">Monto</th>
+                <th style={{ width: 110 }}>Publicación</th>
+                <th style={{ width: 130 }}>Etapa</th>
+                <th style={{ width: 30 }}></th>
               </tr>
             </thead>
             <tbody>
+              {licitaciones.length === 0 && !running && (
+                <tr><td colSpan="7" style={{ padding: 24, textAlign: 'center', color: 'var(--ink-3)' }}>Sin datos. Ejecuta el scraper.</td></tr>
+              )}
               {licitaciones.map(l => (
-                <tr key={l.id} className="row-hover" onClick={() => setSelected(l.id)} style={{ cursor: 'pointer', background: selected === l.id ? 'var(--accent-soft)' : 'transparent' }}>
+                <tr key={l.nidProceso} className="row-hover" onClick={() => setSelected(l.nidProceso)} style={{ cursor: 'pointer', background: selected === l.nidProceso ? 'var(--accent-soft)' : 'transparent' }}>
                   <td><span className="mono text-xs" style={{ color: 'var(--accent)', fontWeight: 600 }}>{l.id}</span></td>
                   <td>
                     <div style={{ fontWeight: 500, marginBottom: 2 }}>{l.entidad}</div>
                     <div style={{ fontSize: 11, color: 'var(--ink-3)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 360 }}>{l.obj}</div>
                   </td>
-                  <td><span className="mono text-xs muted">{l.region}</span></td>
-                  <td className="num-c" style={{ fontWeight: 500 }}>{l.monto.toLocaleString('es-PE')}</td>
-                  <td className="mono text-xs muted">{l.cierre}</td>
-                  <td>
-                    <div className="hstack" style={{ gap: 6 }}>
-                      <div style={{ width: 44, height: 4, background: 'var(--bg-sunken)', borderRadius: 2 }}>
-                        <div style={{ width: l.score + '%', height: '100%', background: l.match === 'alta' ? 'var(--ok)' : l.match === 'media' ? 'var(--warn)' : 'var(--ink-4)', borderRadius: 2 }} />
-                      </div>
-                      <span className="mono text-xs" style={{ fontWeight: 600, color: l.match === 'alta' ? 'var(--ok)' : l.match === 'media' ? 'var(--warn-ink)' : 'var(--ink-3)' }}>{l.score}</span>
-                    </div>
-                  </td>
+                  <td><span className="mono text-xs muted">{l.objeto || '—'}</span></td>
+                  <td className="num-c" style={{ fontWeight: 500 }}>—</td>
+                  <td className="mono text-xs muted">{l.fecha || '—'}</td>
+                  <td><span className="chip">{l.etapa || '—'}</span></td>
                   <td>{Icon.right({ size: 12 })}</td>
                 </tr>
               ))}
@@ -143,32 +149,66 @@ function SeacePage() {
 
         {/* Right: detail + scraper console */}
         <div style={{ width: 420, display: 'flex', flexDirection: 'column', flexShrink: 0, background: 'var(--bg-sunken)' }}>
-          <div style={{ padding: 16, borderBottom: '1px solid var(--line)', background: 'var(--bg-elev)' }}>
-            <div className="hstack" style={{ gap: 6, marginBottom: 6 }}>
-              <span className="mono text-xs" style={{ color: 'var(--accent)', fontWeight: 600 }}>{sel.id}</span>
-              <span className={'chip ' + (sel.match === 'alta' ? 'green' : sel.match === 'media' ? 'amber' : '')}>Match {sel.match} · {sel.score}</span>
-            </div>
-            <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 2 }}>{sel.entidad}</div>
-            <div style={{ fontSize: 12, color: 'var(--ink-2)', lineHeight: 1.5, marginBottom: 10 }}>{sel.obj}</div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginTop: 10 }}>
-              <Field l="Monto base" v={fmtPEN(sel.monto)} />
-              <Field l="Cierre" v={sel.cierre} />
-              <Field l="Región" v={sel.region} />
-              <Field l="Modalidad" v="LP Clásica" />
-            </div>
-            <div style={{ marginTop: 12, padding: 10, background: 'var(--accent-soft)', borderRadius: 6, fontSize: 11, color: 'var(--accent-ink)' }}>
-              <div className="hstack" style={{ gap: 6, marginBottom: 3 }}>
-                <span style={{ color: 'var(--accent)' }}>{Icon.sparkle({ size: 11 })}</span>
-                <strong>Copiloto IA — análisis de viabilidad</strong>
-              </div>
-              <div style={{ lineHeight: 1.5 }}>
-                MMHIGHMETRIK tiene 4 obras similares ejecutadas para ESSALUD con margen promedio 14.2%. Capacidad técnica y económica cubiertas. Riesgo bajo en plazo por proximidad geográfica.
-              </div>
-            </div>
-            <div className="hstack" style={{ gap: 6, marginTop: 12 }}>
-              <button className="tb-btn" style={{ flex: 1, justifyContent: 'center' }}>{Icon.download({ size: 12 })}Bases</button>
-              <button className="tb-btn primary" style={{ flex: 1, justifyContent: 'center' }}>{Icon.arrowR({ size: 12 })}Enviar a pipeline</button>
-            </div>
+          <div style={{ padding: 16, borderBottom: '1px solid var(--line)', background: 'var(--bg-elev)', overflow: 'auto' }}>
+            {!sel && <div className="muted" style={{ padding: 20 }}>Selecciona un proceso</div>}
+            {sel && (
+              <>
+                <div className="hstack" style={{ gap: 6, marginBottom: 6 }}>
+                  <span className="mono text-xs" style={{ color: 'var(--accent)', fontWeight: 600 }}>{sel.id}</span>
+                  {loadingDet && <span className="chip">⏳ cargando…</span>}
+                </div>
+                <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 2 }}>{sel.entidad}</div>
+                <div style={{ fontSize: 12, color: 'var(--ink-2)', lineHeight: 1.5, marginBottom: 10 }}>{sel.obj}</div>
+
+                {detalle && (
+                  <>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginTop: 10 }}>
+                      <Field l="N° Convocatoria" v={detalle.nConvocatoria || '—'} />
+                      <Field l="Tipo" v={detalle.tipoCompra || '—'} />
+                      <Field l="Versión SEACE" v={detalle.versionSeace || '—'} />
+                      <Field l="Publicación" v={detalle.fechaPublicacion || '—'} />
+                      <Field l="Dirección" v={detalle.direccion || '—'} />
+                      <Field l="Teléfono" v={detalle.telefono || '—'} />
+                    </div>
+
+                    {detalle.cronograma?.length > 0 && (
+                      <div style={{ marginTop: 14 }}>
+                        <div style={{ fontSize: 9, color: 'var(--ink-3)', fontFamily: 'var(--mono)', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 600, marginBottom: 6 }}>Cronograma</div>
+                        <table style={{ fontSize: 11 }}>
+                          <thead><tr><th>Etapa</th><th>Inicio</th><th>Fin</th></tr></thead>
+                          <tbody>
+                            {detalle.cronograma.map((c, i) => (
+                              <tr key={i}><td style={{ fontSize: 11 }}>{c.etapa}</td><td className="mono text-xs muted">{c.inicio}</td><td className="mono text-xs muted">{c.fin}</td></tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+
+                    {detalle.documentos?.length > 0 && (
+                      <div style={{ marginTop: 14 }}>
+                        <div style={{ fontSize: 9, color: 'var(--ink-3)', fontFamily: 'var(--mono)', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 600, marginBottom: 6 }}>Documentos</div>
+                        {detalle.documentos.map((d, i) => (
+                          <div key={i} style={{ padding: 8, background: 'var(--bg-sunken)', borderRadius: 4, marginBottom: 6, fontSize: 11 }}>
+                            <div style={{ fontWeight: 500 }}>{d.documento}</div>
+                            <div className="muted" style={{ fontSize: 10, marginBottom: 4 }}>{d.etapa} · {d.fecha}</div>
+                            {(d.descargas || []).map((dl, j) => (
+                              <a key={j}
+                                href={`${API}/api/v1/procesos/${sel.nidProceso}/documentos/${encodeURIComponent(dl.filename)}?nomenclatura=${encodeURIComponent(sel.id)}`}
+                                target="_blank"
+                                rel="noreferrer"
+                                style={{ display: 'inline-block', fontSize: 11, color: 'var(--accent)', textDecoration: 'none', marginRight: 8 }}>
+                                📄 {dl.filename}
+                              </a>
+                            ))}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </>
+                )}
+              </>
+            )}
           </div>
 
           <div style={{ flex: 1, overflow: 'auto', padding: 14, fontFamily: 'var(--mono)', fontSize: 11, background: '#0A0C10', color: '#8FA3F0', minHeight: 0 }}>

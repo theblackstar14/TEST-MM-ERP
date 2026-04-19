@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>MMHIGHMETRIK Engineers · ERP</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;450;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="src/styles.css" />
+</head>
+<body>
+<div id="root"></div>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+<script src="src/data.js"></script>
+<script type="text/babel" src="src/icons.jsx"></script>
+<script type="text/babel" src="src/shell.jsx"></script>
+<script type="text/babel" src="src/dashboard.jsx"></script>
+<script type="text/babel" src="src/presupuesto.jsx"></script>
+<script type="text/babel" src="src/licitaciones.jsx"></script>
+<script type="text/babel" src="src/other.jsx"></script>
+<script type="text/babel" src="src/proyectos.jsx"></script>
+<script type="text/babel" src="src/finanzas.jsx"></script>
+<script type="text/babel" src="src/compras.jsx"></script>
+<script type="text/babel" src="src/seace_personal.jsx"></script>
+
+<script type="text/babel" data-presets="env,react">
+const { useState, useEffect } = React;
+const { Sidebar, Topbar, Tweaks, Copilot } = window.Shell;
+
+const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
+  "theme": "light",
+  "sidebar": "full",
+  "accent": "blue"
+}/*EDITMODE-END*/;
+
+const ACCENTS = {
+  blue: { a: '#3B5BDB', a2: '#2A44B8', soft: '#E6EBFA', ink: '#1B2C7C' },
+  indigo: { a: '#5B3BDB', a2: '#4526B8', soft: '#EBE6FA', ink: '#2F1B7C' },
+  teal: { a: '#0D9488', a2: '#0A7568', soft: '#D6F0EC', ink: '#064E43' },
+};
+
+function applyTweaks(t) {
+  document.documentElement.setAttribute('data-theme', t.theme);
+  const colors = ACCENTS[t.accent] || ACCENTS.blue;
+  const root = document.documentElement;
+  if (t.theme === 'light') {
+    root.style.setProperty('--accent', colors.a);
+    root.style.setProperty('--accent-2', colors.a2);
+    root.style.setProperty('--accent-soft', colors.soft);
+    root.style.setProperty('--accent-ink', colors.ink);
+  } else {
+    root.style.setProperty('--accent', colors.a);
+  }
+}
+
+function App() {
+  const [route, setRoute] = useState(() => localStorage.getItem('mm.route') || 'dashboard');
+  const [drillId, setDrillId] = useState(null);
+  const [copilotOpen, setCopilotOpen] = useState(false);
+  const [tweaksVisible, setTweaksVisible] = useState(false);
+  const [tweaks, setTweaksState] = useState(() => {
+    try { return { ...TWEAK_DEFAULTS, ...JSON.parse(localStorage.getItem('mm.tweaks') || '{}') }; }
+    catch { return TWEAK_DEFAULTS; }
+  });
+
+  const setTweaks = (patch) => {
+    const next = { ...tweaks, ...patch };
+    setTweaksState(next);
+    localStorage.setItem('mm.tweaks', JSON.stringify(next));
+    window.parent.postMessage({ type: '__edit_mode_set_keys', edits: patch }, '*');
+  };
+
+  useEffect(() => { applyTweaks(tweaks); }, [tweaks]);
+  useEffect(() => { localStorage.setItem('mm.route', route); }, [route]);
+
+  // Tweaks toggle protocol
+  useEffect(() => {
+    const handler = (e) => {
+      if (!e.data || typeof e.data !== 'object') return;
+      if (e.data.type === '__activate_edit_mode') setTweaksVisible(true);
+      if (e.data.type === '__deactivate_edit_mode') setTweaksVisible(false);
+    };
+    window.addEventListener('message', handler);
+    window.parent.postMessage({ type: '__edit_mode_available' }, '*');
+    return () => window.removeEventListener('message', handler);
+  }, []);
+
+  const nav = (r) => { setRoute(r); setDrillId(null); };
+  const drill = (id) => { setDrillId(id); };
+
+  const crumbsMap = {
+    dashboard: ['MMHIGHMETRIK', 'Dashboard'],
+    licitaciones: ['MMHIGHMETRIK', 'Comercial', 'Licitaciones'],
+    proyectos: ['MMHIGHMETRIK', 'Proyectos'],
+    presupuesto: ['MMHIGHMETRIK', 'Ingeniería', 'Presupuesto', 'OB-2025-021'],
+    comparador: ['MMHIGHMETRIK', 'Ingeniería', 'Comparador de versiones'],
+    gantt: ['MMHIGHMETRIK', 'Ingeniería', 'Cronograma', 'OB-2025-021'],
+    finanzas: ['MMHIGHMETRIK', 'Administración', 'Finanzas'],
+    compras: ['MMHIGHMETRIK', 'Administración', 'Compras'],
+    rrhh: ['MMHIGHMETRIK', 'Administración', 'Personal'],
+    seace: ['MMHIGHMETRIK', 'Comercial', 'SEACE · Importador'],
+    docs: ['MMHIGHMETRIK', 'Archivo', 'Documentos', 'OB-2025-021'],
+  };
+
+  let content;
+  if (drillId) {
+    content = <window.ProjectDetail projectId={drillId} onBack={() => setDrillId(null)} />;
+  } else {
+    switch (route) {
+      case 'dashboard': content = <window.DashboardPage onDrillProject={drill} />; break;
+      case 'licitaciones': content = <window.LicitacionesPage />; break;
+      case 'presupuesto': content = <window.PresupuestoPage />; break;
+      case 'comparador': content = <window.ComparadorPage />; break;
+      case 'gantt': content = <window.GanttPage />; break;
+      case 'docs': content = <window.DocsPage />; break;
+      case 'proyectos': content = <window.ProyectosPage onDrillProject={drill} />; break;
+      case 'finanzas': content = <window.FinanzasPage />; break;
+      case 'compras': content = <window.ComprasPage />; break;
+      case 'rrhh': content = <window.PersonalPage />; break;
+      case 'seace': content = <window.SeacePage />; break;
+      default: content = <window.DashboardPage onDrillProject={drill} />;
+    }
+  }
+
+  const crumbs = drillId ? [...crumbsMap[route], drillId] : crumbsMap[route];
+
+  const nextSidebar = () => {
+    const order = ['full', 'icon', 'collapsed'];
+    const i = order.indexOf(tweaks.sidebar);
+    setTweaks({ sidebar: order[(i + 1) % order.length] });
+  };
+
+  return (
+    <div className="app" data-sb={tweaks.sidebar}>
+      <Sidebar route={drillId ? 'dashboard' : route} onNav={nav} />
+      <div className="main">
+        <Topbar
+          crumbs={crumbs}
+          onToggleSidebar={nextSidebar}
+          onToggleCopilot={() => setCopilotOpen(v => !v)}
+          onToggleTheme={() => setTweaks({ theme: tweaks.theme === 'dark' ? 'light' : 'dark' })}
+          theme={tweaks.theme}
+        />
+        <div className="ws">{content}</div>
+      </div>
+      <Copilot open={copilotOpen} onClose={() => setCopilotOpen(false)} context={route} />
+      <Tweaks visible={tweaksVisible} state={tweaks} setState={setTweaks} onClose={() => setTweaksVisible(false)} />
+    </div>
+  );
+}
+
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(<App />);
+</script>
+</body>
+</html>

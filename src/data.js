@@ -22,7 +22,7 @@ window.ERP_DATA = (() => {
       progressFinanciero: 0.615,
       startDate: '2025-08-11',
       endDate: '2026-05-30',
-      manager: 'Ing. Carla Mendoza',
+      manager: 'Ing. Mario Garcia',
       location: 'Av. República de Panamá 3591, San Isidro',
       hitos: 3,
       hitosTotal: 7,
@@ -98,7 +98,7 @@ window.ERP_DATA = (() => {
       progressFinanciero: 0.0,
       startDate: '2026-05-20',
       endDate: '2026-09-15',
-      manager: 'Ing. Carla Mendoza',
+      manager: 'Ing. Mario Garcia',
       location: 'Calle Enrique Palacios 1120, Miraflores',
       hitos: 0,
       hitosTotal: 5,
@@ -250,10 +250,10 @@ window.ERP_DATA = (() => {
 
   // Budget versions for comparator
   const versions = [
-    { id: 'v1', label: 'v1 — Base licitación', date: '2025-07-10', total: 798200, author: 'Ing. Carla Mendoza', note: 'Presupuesto entregado en la propuesta' },
-    { id: 'v2', label: 'v2 — Post adjudicación', date: '2025-08-04', total: 812400, author: 'Ing. Carla Mendoza', note: 'Ajuste por cambio de proveedor de acero' },
+    { id: 'v1', label: 'v1 — Base licitación', date: '2025-07-10', total: 798200, author: 'Ing. Mario Garcia', note: 'Presupuesto entregado en la propuesta' },
+    { id: 'v2', label: 'v2 — Post adjudicación', date: '2025-08-04', total: 812400, author: 'Ing. Mario Garcia', note: 'Ajuste por cambio de proveedor de acero' },
     { id: 'v3', label: 'v3 — Adicional #1', date: '2026-01-22', total: 831600, author: 'Ing. Rodrigo Paredes', note: 'Adicional por cambio de especificación en HVAC' },
-    { id: 'v4', label: 'v4 — Vigente', date: '2026-03-14', total: 842500, author: 'Ing. Carla Mendoza', note: 'Ajuste por alza de insumos Q1' },
+    { id: 'v4', label: 'v4 — Vigente', date: '2026-03-14', total: 842500, author: 'Ing. Mario Garcia', note: 'Ajuste por alza de insumos Q1' },
   ];
 
   return { projects, partidas, bids, gantt, cashflow, docsTree, versions, fmtPEN, fmtInt, fmtPct };

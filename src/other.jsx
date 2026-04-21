@@ -410,7 +410,7 @@ function DocsPage() {
 // =================== PROJECT DETAIL (tabbed prototype) ===================
 
 const TEAM = [
-  { name: 'Ing. Carla Mendoza',      role: 'Jefa de obra',       ini: 'CM', color: '#3B5BDB' },
+  { name: 'Ing. Mario Garcia',        role: 'Jefa de obra',       ini: 'MG', color: '#3B5BDB' },
   { name: 'Arq. Pedro Quispe',       role: 'Residente',          ini: 'PQ', color: '#2F7D5C' },
   { name: 'Téc. Rosa Vílchez',       role: 'Control de costos',  ini: 'RV', color: '#7C3AED' },
   { name: 'CPC. Jorge Bustamante',   role: 'Administrador',      ini: 'JB', color: '#D1453B' },

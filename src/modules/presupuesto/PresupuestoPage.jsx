@@ -2,7 +2,7 @@
 const { useState, useMemo } = React;
 const { fmtPEN, fmtInt, fmtPct } = ERP_DATA;
 
-function Presupuesto() {
+function PresupuestoPage() {
   const { partidas } = ERP_DATA;
   const [expanded, setExpanded] = useState(new Set(['01', '02', '02.01', '02.02', '03', '03.01']));
   const [selected, setSelected] = useState('02.01.02');
@@ -314,4 +314,4 @@ function PartidaDetail({ partidaId, values }) {
   );
 }
 
-window.PresupuestoPage = Presupuesto;
+window.PresupuestoPage = PresupuestoPage;

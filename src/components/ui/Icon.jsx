@@ -53,6 +53,15 @@ const Icon = {
   arrowR: (p) => <I {...p} path={<><path d="M5 12h14M13 5l7 7-7 7"/></>} />,
   history: (p) => <I {...p} path={<><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l3 2"/></>} />,
   eye: (p) => <I {...p} path={<><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></>} />,
+  box: (p) => <I {...p} path={<><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></>} />,
+  qr: (p) => <I {...p} path={<><rect x="3" y="3" width="5" height="5"/><rect x="16" y="3" width="5" height="5"/><rect x="3" y="16" width="5" height="5"/><path d="M21 16h-3a2 2 0 0 0-2 2v3"/><path d="M21 21v.01"/><path d="M12 7v3a2 2 0 0 1-2 2H7"/></>} />,
+  wrench: (p) => <I {...p} path={<><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></>} />,
+  map: (p) => <I {...p} path={<><polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21"/><line x1="9" y1="3" x2="9" y2="18"/><line x1="15" y1="6" x2="15" y2="21"/></>} />,
+  camera: (p) => <I {...p} path={<><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></>} />,
+  swap: (p) => <I {...p} path={<><path d="m16 3 4 4-4 4"/><path d="M20 7H4"/><path d="m8 21-4-4 4-4"/><path d="M4 17h16"/></>} />,
+  book: (p) => <I {...p} path={<><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></>} />,
+  bank: (p) => <I {...p} path={<><path d="m12 3-10 7 10 7 10-7z"/><path d="M4 12v7"/><path d="M8 14v5"/><path d="M12 15v5"/><path d="M16 14v5"/><path d="M20 12v7"/></>} />,
+  scale: (p) => <I {...p} path={<><path d="M16 16h6"/><path d="M8 16H2"/><path d="M12 3v13"/><path d="M7 8h10"/><path d="m17 8-2 4 2 4 2-4z"/><path d="m7 8-2 4 2 4 2-4z"/></>} />,
 };
 
 window.Icon = Icon;

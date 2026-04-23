@@ -380,6 +380,385 @@ button:focus-visible, input:focus-visible, a:focus-visible, select:focus-visible
 .animate-bar-grow { animation: barGrow .8s cubic-bezier(.2,.6,.2,1) both; transform-origin: left; }
 .animate-fade-in  { animation: fadeIn .25s ease-out both; }
 
+/* Slide-in drawer from right (inventario detail panel, etc) */
+@keyframes slideInRight {
+  from { opacity: 0; transform: translateX(40px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+/* ---- Drill-down (smooth open + close) ---- */
+@keyframes drillIn {
+  0%   { opacity: 0; transform: translateY(-10px); max-height: 0; margin-bottom: 0; }
+  60%  { opacity: 1; }
+  100% { opacity: 1; transform: translateY(0); max-height: 1600px; margin-bottom: 14px; }
+}
+@keyframes drillOut {
+  0%   { opacity: 1; transform: translateY(0); max-height: 1600px; margin-bottom: 14px; }
+  40%  { opacity: 0; }
+  100% { opacity: 0; transform: translateY(-6px); max-height: 0; margin-bottom: 0; }
+}
+.drill-wrap { overflow: hidden; }
+.drill-wrap.opening { animation: drillIn .34s cubic-bezier(.2,.75,.3,1) both; }
+.drill-wrap.closing { animation: drillOut .24s cubic-bezier(.4,0,.7,.4) both; }
+.drill-wrap > .card { margin-bottom: 0 !important; }
+
+/* ---- Modal close animation ---- */
+@keyframes overlayOut {
+  from { opacity: 1; backdrop-filter: blur(8px); }
+  to   { opacity: 0; backdrop-filter: blur(0px); }
+}
+@keyframes modalOut {
+  from { opacity: 1; transform: translateY(0) scale(1); }
+  to   { opacity: 0; transform: translateY(14px) scale(0.96); }
+}
+.modal-overlay.closing { animation: overlayOut .2s ease-out both; }
+.modal-box.closing     { animation: modalOut .22s cubic-bezier(.4,0,.7,.4) both; }
+
+/* KPI smoother transition */
+.kpi { transition: border-color .22s cubic-bezier(.2,.75,.3,1), box-shadow .22s cubic-bezier(.2,.75,.3,1), background .22s ease; }
+
+/* Form input utility */
+.fin-input {
+  padding: 7px 10px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--bg-elev);
+  font-size: 12px;
+  color: var(--ink);
+  outline: none;
+  font-family: var(--sans);
+  transition: border-color .15s;
+}
+.fin-input:focus { border-color: var(--accent); }
+
+/* ────── Finanzas · Resumen layout ────── */
+.finanzas-kpis-7 {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 8px;
+  margin-bottom: 6px;
+}
+@media (max-width: 1480px) {
+  .finanzas-kpis-7 { grid-template-columns: repeat(4, 1fr); }
+}
+@media (max-width: 900px) {
+  .finanzas-kpis-7 { grid-template-columns: repeat(2, 1fr); }
+}
+
+.finanzas-treasury-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+}
+@media (max-width: 1240px) {
+  .finanzas-treasury-grid { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 700px) {
+  .finanzas-treasury-grid { grid-template-columns: 1fr; }
+}
+
+.finanzas-3-col {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 14px;
+}
+@media (max-width: 1240px) {
+  .finanzas-3-col { grid-template-columns: 1fr; }
+}
+
+.finanzas-2-col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+@media (max-width: 900px) {
+  .finanzas-2-col { grid-template-columns: 1fr; }
+}
+
+/* ═══════════════ OC PREVIEW — hoja A4 replica del PDF ═══════════════ */
+/* REGLAS:
+   - Ancho FIJO 210mm · nunca max-width: 100%.
+   - min-height REMOVIDO → sheet crece con contenido (no fuerza 2da página vacía).
+   - Reglas page-break para tablas largas: header se repite + filas no se parten. */
+.oc-print-sheet {
+  width: 210mm;
+  margin: 0 auto;
+  padding: 12mm 16mm 10mm;
+  background: #FFFFFF;
+  color: #000000;
+  font-family: 'Calibri', 'Segoe UI', 'Inter', sans-serif;
+  font-size: 10pt;
+  line-height: 1.35;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.12);
+  box-sizing: border-box;
+  flex-shrink: 0;
+}
+.oc-preview-scroll {
+  overflow: auto;
+  background: #EEEEE9;
+  padding: 24px;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+}
+
+.oc-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 4mm;
+}
+.oc-logo-wrap { position: relative; width: 60mm; height: 20mm; display: flex; align-items: center; }
+.oc-logo { max-height: 20mm; max-width: 60mm; object-fit: contain; }
+.oc-logo-fallback { display: flex; flex-direction: column; gap: 2px; }
+.oc-logo-mm {
+  font-size: 30pt; font-weight: 900; color: #1C1C1C;
+  letter-spacing: -2pt; line-height: 0.9;
+}
+.oc-logo-sub {
+  font-size: 6.5pt; font-weight: 700; color: #3D3D3A;
+  letter-spacing: 2pt; text-transform: uppercase;
+}
+.oc-logo + .oc-logo-fallback { display: none; }
+.oc-logo[src=""] + .oc-logo-fallback,
+.oc-logo:not([src]) + .oc-logo-fallback { display: flex; }
+
+.oc-header-right { text-align: right; font-size: 10pt; }
+.oc-header-row { display: flex; gap: 10mm; justify-content: flex-end; }
+.oc-header-lbl { font-weight: 700; }
+.oc-header-val { min-width: 24mm; text-align: right; }
+
+.oc-title {
+  text-align: center;
+  font-weight: 700;
+  font-size: 11pt;
+  letter-spacing: 0.5pt;
+  border-bottom: 1.2pt solid #000;
+  padding: 2mm 0;
+  margin-bottom: 3mm;
+}
+
+.oc-section-title {
+  font-weight: 700;
+  font-size: 10pt;
+  margin: 3mm 0 1mm 0;
+}
+
+.oc-two-col {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr;
+  gap: 8mm;
+  margin-bottom: 2mm;
+}
+
+.oc-kv {
+  border-collapse: collapse;
+  font-size: 9pt;
+  width: 100%;
+}
+.oc-kv td {
+  padding: 0.5mm 0;
+  vertical-align: top;
+}
+.oc-kv-label {
+  width: 24mm;
+  color: #1C1C1C;
+  padding-right: 2mm;
+}
+.oc-kv-label-bold {
+  width: 32mm;
+  font-weight: 700;
+  color: #1C1C1C;
+  padding-right: 2mm;
+}
+.oc-kv td:nth-child(2) {
+  width: 4mm;
+  padding-right: 2mm;
+  color: #1C1C1C;
+}
+
+.oc-hr {
+  border-top: 0.5pt solid #D8D8D2;
+  margin: 3mm 0;
+}
+
+.oc-concepto-row {
+  display: flex;
+  gap: 3mm;
+  align-items: center;
+  margin: 3mm 0 1.5mm 0;
+  font-size: 9.5pt;
+}
+.oc-concepto-lbl { font-weight: 700; width: 22mm; }
+.oc-concepto-colon { color: #1C1C1C; }
+.oc-concepto-val { font-weight: 500; }
+
+.oc-items-table {
+  width: 100%;
+  border-collapse: collapse;
+  border: 1pt solid #000;
+  font-size: 9pt;
+  margin-bottom: 3mm;
+}
+.oc-items-table th {
+  background: #FFFFFF;
+  border: 0.5pt solid #000;
+  padding: 1.5mm 2mm;
+  font-weight: 700;
+  text-align: center;
+  font-size: 9pt;
+  text-transform: none;
+  letter-spacing: 0;
+  font-family: 'Calibri', sans-serif;
+  color: #000;
+  position: static;
+}
+.oc-items-table td {
+  border: 0.5pt solid #000;
+  padding: 1.5mm 2mm;
+  vertical-align: middle;
+  color: #000;
+}
+.oc-cell-center { text-align: center; }
+.oc-cell-right  { text-align: right; }
+.oc-cell-desc   { font-size: 8.5pt; line-height: 1.25; }
+.oc-items-table tfoot td {
+  font-weight: 700;
+  background: #FAFAFA;
+}
+.oc-cell-label { text-align: left; }
+.oc-cell-total { background: #F8F7F3 !important; font-size: 10pt; }
+
+/* Totales FUERA de la tabla (para evitar repetición multi-página) */
+/* Mismo look que el tfoot original — pegado debajo de la tabla items */
+.oc-items-total-table {
+  width: 100%;
+  border-collapse: collapse;
+  border-left: 1pt solid #000;
+  border-right: 1pt solid #000;
+  border-bottom: 1pt solid #000;
+  font-size: 9pt;
+  margin-bottom: 3mm;
+  /* Nunca partir: el total queda pegado debajo de la tabla */
+  page-break-before: avoid;
+  break-before: avoid;
+  page-break-inside: avoid;
+  break-inside: avoid;
+}
+.oc-items-total-table td {
+  border: 0.5pt solid #000;
+  padding: 1.5mm 2mm;
+  vertical-align: middle;
+  color: #000;
+  font-weight: 700;
+  background: #FAFAFA;
+}
+
+.oc-generales-block {
+  display: grid;
+  grid-template-columns: 1fr 60mm;
+  gap: 10mm;
+  margin: 2mm 0 2mm 0;
+  min-height: 26mm;
+}
+.oc-generales-title { font-weight: 700; font-size: 10pt; margin-bottom: 1mm; }
+.oc-generales-body {
+  font-size: 9pt;
+  white-space: pre-line;
+  line-height: 1.5;
+}
+.oc-firma-wrap { display: flex; flex-direction: column; align-items: center; gap: 2mm; }
+.oc-firma-box {
+  width: 55mm;
+  height: 22mm;
+  border: 1pt dashed #6B6B68;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #FCFCFA;
+}
+.oc-firma-label {
+  font-size: 9pt;
+  color: #9A9A96;
+  font-family: 'Calibri', sans-serif;
+  letter-spacing: 1pt;
+  text-transform: uppercase;
+  font-weight: 500;
+}
+.oc-firma-caption {
+  font-size: 7.5pt;
+  text-align: center;
+  line-height: 1.3;
+  color: #1C1C1C;
+}
+
+.oc-legal {
+  font-size: 7pt;
+  line-height: 1.3;
+  text-align: justify;
+  color: #1C1C1C;
+  margin: 2mm 0 3mm 0;
+}
+
+.oc-creado-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin: 2mm 0 3mm 0;
+  padding: 2mm 0;
+  border-top: 0.5pt solid #D8D8D2;
+  border-bottom: 0.5pt solid #D8D8D2;
+  font-size: 9pt;
+}
+.oc-creado-block { display: flex; gap: 4mm; align-items: baseline; }
+.oc-creado-block-right { text-align: right; }
+.oc-creado-lbl { color: #3D3D3A; }
+.oc-creado-val { font-weight: 500; }
+.oc-creado-email { color: #2A44B8; text-decoration: underline; }
+
+.oc-footer-empresa {
+  text-align: center;
+  font-size: 8.5pt;
+  color: #1C1C1C;
+  line-height: 1.45;
+  margin-top: 2mm;
+}
+
+/* ═══ Page breaks multi-página para tablas largas y bloques críticos ═══ */
+/* Se aplica tanto en print como en html2pdf.js */
+.oc-items-table              { page-break-inside: auto; break-inside: auto; }
+.oc-items-table thead        { display: table-header-group; }
+.oc-items-table tfoot        { display: table-footer-group; }
+.oc-items-table tr           { page-break-inside: avoid; break-inside: avoid; page-break-after: auto; }
+
+/* Bloques que NO deben partirse entre páginas */
+.oc-header,
+.oc-title,
+.oc-two-col,
+.oc-concepto-row,
+.oc-generales-block,
+.oc-creado-row,
+.oc-footer-empresa,
+.oc-bottom-group           { page-break-inside: avoid; break-inside: avoid; }
+
+/* Firma debe quedar junto a su caption */
+.oc-firma-wrap             { page-break-inside: avoid; break-inside: avoid; }
+
+/* Legal text puede partirse pero preferible mantener primeras y últimas líneas juntas */
+.oc-legal                  { orphans: 3; widows: 3; }
+
+/* ═══ Print mode ═══
+   Nota: la impresión REAL se hace mediante iframe aislado (ComprasPage handlePrint).
+   Ese iframe inyecta sus propios @page + overrides. Estas reglas solo aplican si
+   alguien hace Ctrl+P directo sobre la app (caso raro). */
+@media print {
+  html, body {
+    background: #FFFFFF !important;
+    overflow: visible !important;
+  }
+  @page { size: A4; margin: 0; }
+}
+
 /* ---- Project card ---- */
 .proj-card {
   background: var(--bg-elev);
@@ -426,9 +805,10 @@ button:focus-visible, input:focus-visible, a:focus-visible, select:focus-visible
 
 /* ---- Modal overlay ---- */
 .modal-overlay {
-  position: fixed; inset: 0; z-index: 200;
-  background: rgba(0,0,0,0.45);
-  backdrop-filter: blur(4px);
+  position: fixed; inset: 0; z-index: 9999;
+  background: rgba(0,0,0,0.6);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   display: flex; align-items: center; justify-content: center;
   animation: fadeIn .18s ease-out both;
 }

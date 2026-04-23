@@ -26,13 +26,7 @@ function App() {
     document.body.setAttribute('data-theme', tweaks.theme);
   }, [tweaks.theme]);
 
-  // Gate: sin sesión → login screen
-  if (!session) {
-    return <LoginPage onLogin={setSession} />;
-  }
-
-  const nav = (r) => { setRoute(r); setProjectDrill(null); if (window.innerWidth < 1000) setTweaks({ ...tweaks, sidebar: 'collapsed' }); };
-
+  // IMPORTANTE: todos los hooks antes del early-return. Rules of Hooks: mismo orden cada render.
   const crumbs = useMemo(() => {
     const map = {
       dashboard: ['Principal', 'Dashboard'],
@@ -53,6 +47,13 @@ function App() {
     if (projectDrill) return [...base, projectDrill];
     return base;
   }, [route, projectDrill]);
+
+  // Gate: sin sesión → login screen
+  if (!session) {
+    return <LoginPage onLogin={setSession} />;
+  }
+
+  const nav = (r) => { setRoute(r); setProjectDrill(null); if (window.innerWidth < 1000) setTweaks({ ...tweaks, sidebar: 'collapsed' }); };
 
   return (
     <div className="app" data-sb={tweaks.sidebar}>

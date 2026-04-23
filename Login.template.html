@@ -1,0 +1,826 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Iniciar sesión · MMHIGHMETRIK</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<style>
+  :root {
+    --bg:          #F7F7F5;
+    --surface:     #FFFFFF;
+    --ink:         #0F1115;
+    --ink-2:       #3B3F46;
+    --muted:       #8A8F98;
+    --line:        #E6E6E3;
+    --line-2:      #EFEFEC;
+    --accent:      #4F46E5;
+    --accent-ink:  #FFFFFF;
+    --accent-soft: #EEF0FF;
+    --danger:      #D2483F;
+    --ok:          #2F7D4A;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: var(--bg); color: var(--ink); }
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    font-feature-settings: "ss01","cv11";
+  }
+  .mono { font-family: 'JetBrains Mono', ui-monospace, monospace; }
+  button { font-family: inherit; }
+  input { font-family: inherit; }
+  a { color: inherit; }
+  ::selection { background: var(--accent); color: white; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script>
+window.TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
+  "variant": "framed",
+  "accent": "slate",
+  "showSideTicker": true,
+  "compactMode": true
+}/*EDITMODE-END*/;
+</script>
+
+<script type="text/babel" data-presets="react">
+/* global React, ReactDOM */
+const { useState, useEffect, useRef, useMemo } = React;
+
+/* ─────────── Accent palettes ─────────── */
+const ACCENTS = {
+  indigo: { c: '#4F46E5', ink: '#FFFFFF', soft: '#EEF0FF', name: 'Indigo' },
+  slate:  { c: '#1F2937', ink: '#FFFFFF', soft: '#EEF1F5', name: 'Grafito' },
+  terra:  { c: '#B04A2F', ink: '#FFFFFF', soft: '#FAEFEA', name: 'Terracota' },
+  forest: { c: '#2F5D3A', ink: '#FFFFFF', soft: '#EAF1EC', name: 'Bosque' },
+};
+
+/* ─────────── Brand logo (original, not copied) ─────────── */
+function BrandMark({ size = 36, accent = '#4F46E5' }) {
+  return (
+    <div style={{
+      width: size, height: size, borderRadius: size * 0.22,
+      background: accent,
+      display: 'grid', placeItems: 'center',
+      color: 'white', fontFamily: 'JetBrains Mono, monospace',
+      fontWeight: 700, fontSize: size * 0.42, letterSpacing: '-0.02em',
+      boxShadow: '0 1px 0 rgba(255,255,255,.25) inset, 0 1px 2px rgba(0,0,0,.06)',
+      position: 'relative', overflow: 'hidden',
+    }}>
+      <svg viewBox="0 0 40 40" width={size} height={size} style={{position:'absolute', inset:0}}>
+        <path d="M 8 28 L 14 14 L 20 24 L 26 12 L 32 28" fill="none" stroke="rgba(255,255,255,.22)" strokeWidth="1.4" strokeLinejoin="round"/>
+      </svg>
+      <span style={{position:'relative'}}>MH</span>
+    </div>
+  );
+}
+
+function WordMark({ accent }) {
+  return (
+    <div style={{display:'flex', alignItems:'center', gap: 12}}>
+      <BrandMark size={34} accent={accent}/>
+      <div style={{lineHeight: 1.05}}>
+        <div style={{fontWeight: 700, letterSpacing:'-0.01em', fontSize: 15, color: 'var(--ink)'}}>
+          MMHIGHMETRIK
+        </div>
+        <div className="mono" style={{fontSize: 10.5, letterSpacing:'0.12em', color:'var(--muted)', textTransform:'uppercase', marginTop: 2}}>
+          Engineers ERP
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ─────────── UI bits ─────────── */
+function Label({children, htmlFor, hint}) {
+  return (
+    <div style={{display:'flex', justifyContent:'space-between', alignItems:'baseline', marginBottom: 8}}>
+      <label htmlFor={htmlFor} className="mono" style={{fontSize: 11, letterSpacing:'0.12em', textTransform:'uppercase', color:'var(--muted)', fontWeight: 500}}>
+        {children}
+      </label>
+      {hint}
+    </div>
+  );
+}
+
+function Field({ id, type='text', value, onChange, placeholder, autoComplete, invalid, rightSlot, onFocus, onBlur }) {
+  const [focus, setFocus] = useState(false);
+  return (
+    <div style={{
+      display:'flex', alignItems:'center',
+      background: 'var(--surface)',
+      border: `1px solid ${invalid ? 'var(--danger)' : focus ? 'var(--ink)' : 'var(--line)'}`,
+      borderRadius: 10,
+      padding: '0 14px',
+      height: 48,
+      transition: 'border-color .15s, box-shadow .15s',
+      boxShadow: focus ? '0 0 0 4px rgba(15,17,21,0.04)' : 'none',
+    }}>
+      <input
+        id={id}
+        type={type}
+        value={value}
+        onChange={e=>onChange(e.target.value)}
+        placeholder={placeholder}
+        autoComplete={autoComplete}
+        onFocus={(e)=>{ setFocus(true); onFocus && onFocus(e); }}
+        onBlur={(e)=>{ setFocus(false); onBlur && onBlur(e); }}
+        style={{
+          flex: 1, border: 'none', outline: 'none', background: 'transparent',
+          fontSize: 14.5, color: 'var(--ink)', letterSpacing:'-0.005em',
+          padding: '14px 0',
+        }}
+      />
+      {rightSlot}
+    </div>
+  );
+}
+
+function Check({checked, onChange, children}) {
+  return (
+    <label style={{display:'inline-flex', alignItems:'center', gap: 10, cursor:'pointer', userSelect:'none'}}>
+      <span style={{
+        width: 16, height: 16, borderRadius: 4,
+        border: `1px solid ${checked ? 'var(--ink)' : 'var(--line)'}`,
+        background: checked ? 'var(--ink)' : 'white',
+        display:'grid', placeItems:'center',
+        transition: 'all .12s',
+      }}>
+        {checked && (
+          <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+            <path d="M1.5 5.2 L4 7.5 L8.5 2.5" stroke="white" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+        )}
+      </span>
+      <input type="checkbox" checked={checked} onChange={e=>onChange(e.target.checked)} style={{display:'none'}}/>
+      <span style={{fontSize: 13.5, color:'var(--ink-2)'}}>{children}</span>
+    </label>
+  );
+}
+
+function PrimaryBtn({children, onClick, loading, disabled, accent}) {
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled || loading}
+      style={{
+        height: 48, width: '100%', borderRadius: 10, border: 'none',
+        background: disabled ? '#C7C9CE' : accent,
+        color: 'white', fontWeight: 600, fontSize: 14.5, letterSpacing:'-0.005em',
+        cursor: disabled ? 'not-allowed' : 'pointer',
+        display:'inline-flex', alignItems:'center', justifyContent:'center', gap: 10,
+        transition: 'transform .08s, filter .15s',
+        position: 'relative', overflow: 'hidden',
+      }}
+      onMouseDown={e=>!disabled && (e.currentTarget.style.transform='scale(0.995)')}
+      onMouseUp={e=>(e.currentTarget.style.transform='')}
+      onMouseLeave={e=>(e.currentTarget.style.transform='')}
+    >
+      {loading ? (
+        <>
+          <Spinner/> <span>Autenticando…</span>
+        </>
+      ) : (
+        <>
+          <span>{children}</span>
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+            <path d="M3 8 H12 M9 5 L12 8 L9 11" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+        </>
+      )}
+    </button>
+  );
+}
+
+function Spinner({size=14}) {
+  return (
+    <span style={{
+      width: size, height: size, borderRadius: '50%',
+      border: '2px solid rgba(255,255,255,.3)', borderTopColor: 'white',
+      animation: 'spin .7s linear infinite', display:'inline-block',
+    }}/>
+  );
+}
+
+function GhostBtn({children, onClick, icon}) {
+  return (
+    <button onClick={onClick} style={{
+      height: 44, padding: '0 14px', borderRadius: 10,
+      background: 'white', border: '1px solid var(--line)',
+      color: 'var(--ink-2)', fontWeight: 500, fontSize: 13.5,
+      display:'inline-flex', alignItems:'center', gap: 10, cursor:'pointer',
+      transition: 'border-color .15s, background .15s',
+    }}
+    onMouseEnter={e=>{e.currentTarget.style.borderColor='var(--ink-2)'; e.currentTarget.style.background='#FAFAF8';}}
+    onMouseLeave={e=>{e.currentTarget.style.borderColor='var(--line)'; e.currentTarget.style.background='white';}}
+    >
+      {icon}
+      <span>{children}</span>
+    </button>
+  );
+}
+
+/* ─────────── Side artwork: abstract animated topo / no sensitive data ─────────── */
+function SideBlueprint({ accent, ticker }) {
+  const [t, setT] = useState(0);
+  useEffect(()=>{ let r; const loop=(ts)=>{ setT(ts/1000); r=requestAnimationFrame(loop); }; r=requestAnimationFrame(loop); return ()=>cancelAnimationFrame(r); }, []);
+
+  // rotating quote set — marketing-safe, no data
+  const phrases = useMemo(()=>[
+    { k:'Plataforma', v:'Donde la obra y la contabilidad hablan el mismo idioma.' },
+    { k:'Precisión',  v:'De la partida al asiento contable, en un solo flujo.' },
+    { k:'Trazabilidad', v:'Cada metrado, cada sol, cada decisión — auditados.' },
+  ], []);
+  const idx = Math.floor(t/5) % phrases.length;
+  const phrase = phrases[idx];
+
+  return (
+    <div style={{
+      position:'relative', height:'100%', width:'100%',
+      background: 'linear-gradient(160deg, #0B0D12 0%, #11141B 55%, #191D28 100%)',
+      color: 'white', overflow:'hidden',
+      display:'flex', flexDirection:'column',
+    }}>
+      {/* topo lines */}
+      <Topo t={t} accent={accent}/>
+
+      {/* accent glow */}
+      <div style={{
+        position:'absolute', width: 620, height: 620, borderRadius:'50%',
+        background: `radial-gradient(circle, ${accent}40 0%, transparent 62%)`,
+        top: -240, right: -220, filter:'blur(8px)', pointerEvents:'none',
+      }}/>
+      <div style={{
+        position:'absolute', width: 440, height: 440, borderRadius:'50%',
+        background: `radial-gradient(circle, ${accent}22 0%, transparent 65%)`,
+        bottom: -180, left: -140, filter:'blur(12px)', pointerEvents:'none',
+      }}/>
+
+      {/* top header */}
+      <div style={{padding: '36px 44px', position:'relative', zIndex:2, display:'flex', justifyContent:'space-between', alignItems:'center'}}>
+        <div className="mono" style={{fontSize: 11, letterSpacing:'0.22em', color:'rgba(255,255,255,.55)', textTransform:'uppercase', display:'flex', alignItems:'center', gap: 10}}>
+          <span style={{width:5, height:5, borderRadius:'50%', background: accent, boxShadow:`0 0 0 4px ${accent}33`}}/>
+          Plataforma v4.2
+        </div>
+        <div className="mono" style={{fontSize: 11, letterSpacing:'0.16em', color:'rgba(255,255,255,.55)'}}>
+          LIMA · {new Date().toLocaleDateString('es-PE',{day:'2-digit',month:'short',year:'numeric'}).toUpperCase()}
+        </div>
+      </div>
+
+      {/* centerpiece: quote + seal */}
+      <div style={{
+        flex: 1, display:'flex', flexDirection:'column', justifyContent:'center',
+        padding: '0 54px', position:'relative', zIndex: 2,
+      }}>
+        <Seal t={t} accent={accent}/>
+
+        <div style={{marginTop: 48, maxWidth: 480}}>
+          <div className="mono" key={'k'+idx} style={{
+            fontSize: 11, letterSpacing:'0.22em', color: accent,
+            textTransform:'uppercase', marginBottom: 18, fontWeight: 500,
+            animation:'fadeIn .5s ease both',
+          }}>
+            {phrase.k}
+          </div>
+          <div key={'v'+idx} style={{
+            fontSize: 32, lineHeight: 1.18, fontWeight: 500,
+            letterSpacing:'-0.025em', color:'rgba(255,255,255,.94)',
+            animation:'fadeIn .6s ease both',
+          }}>
+            {phrase.v}
+          </div>
+        </div>
+
+        {/* phrase indicator */}
+        <div style={{display:'flex', gap: 8, marginTop: 36}}>
+          {phrases.map((_,i)=>(
+            <span key={i} style={{
+              width: i===idx ? 24 : 6, height: 3, borderRadius: 3,
+              background: i===idx ? accent : 'rgba(255,255,255,.2)',
+              transition:'width .4s',
+            }}/>
+          ))}
+        </div>
+      </div>
+
+      {/* bottom footer */}
+      <div style={{padding: '0 54px 36px', position:'relative', zIndex: 2, display:'flex', justifyContent:'space-between', alignItems:'center'}}>
+        <div className="mono" style={{fontSize: 10.5, letterSpacing:'0.14em', color:'rgba(255,255,255,.4)', textTransform:'uppercase'}}>
+          Ingeniería · Contabilidad · Licitaciones
+        </div>
+        {ticker && (
+          <div style={{display:'flex', alignItems:'center', gap: 8}}>
+            <span style={{width: 6, height: 6, borderRadius:'50%', background: '#4ADE80', boxShadow:'0 0 0 4px rgba(74,222,128,.18)', animation:'pulse 2s ease-in-out infinite'}}/>
+            <span className="mono" style={{fontSize: 10.5, color:'rgba(255,255,255,.55)', letterSpacing:'0.1em'}}>
+              Servicios operativos
+            </span>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* Animated topographic/contour lines */
+function Topo({t, accent}) {
+  const lines = 9;
+  return (
+    <svg viewBox="0 0 600 800" preserveAspectRatio="xMidYMid slice" style={{position:'absolute', inset:0, width:'100%', height:'100%', opacity: 0.55}}>
+      <defs>
+        <linearGradient id="lineGrad" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stopColor="rgba(255,255,255,0.12)"/>
+          <stop offset="0.5" stopColor={accent} stopOpacity="0.35"/>
+          <stop offset="1" stopColor="rgba(255,255,255,0.08)"/>
+        </linearGradient>
+      </defs>
+      {Array.from({length: lines}).map((_,i)=>{
+        const phase = t * 0.3 + i * 0.6;
+        const amp = 30 + i * 8;
+        const y0 = 80 + i * 70;
+        const pts = [];
+        for (let x=-20; x<=620; x+=20) {
+          const y = y0 + Math.sin((x/120) + phase) * amp + Math.cos((x/70) + phase*0.7) * (amp*0.35);
+          pts.push(`${x},${y}`);
+        }
+        return (
+          <polyline key={i} points={pts.join(' ')} fill="none"
+            stroke={i===Math.floor(lines/2) ? 'url(#lineGrad)' : 'rgba(255,255,255,0.12)'}
+            strokeWidth={i===Math.floor(lines/2) ? 1.4 : 0.7}/>
+        );
+      })}
+    </svg>
+  );
+}
+
+/* Rotating seal — the visual centerpiece */
+function Seal({t, accent}) {
+  const rot = (t * 8) % 360;
+  const rot2 = (-t * 5) % 360;
+  const letters = 'MMHIGHMETRIK · ENGINEERS ERP · ';
+  const r = 68;
+  return (
+    <div style={{position:'relative', width: 180, height: 180}}>
+      <svg viewBox="-100 -100 200 200" width="180" height="180" style={{position:'absolute', inset:0, transform:`rotate(${rot}deg)`}}>
+        <defs>
+          <path id="ring" d={`M 0,0 m -${r},0 a ${r},${r} 0 1,1 ${r*2},0 a ${r},${r} 0 1,1 -${r*2},0`}/>
+        </defs>
+        <circle r={r+8} fill="none" stroke="rgba(255,255,255,.1)" strokeWidth="0.5"/>
+        <circle r={r-8} fill="none" stroke="rgba(255,255,255,.08)" strokeWidth="0.5"/>
+        <text fontFamily="JetBrains Mono, monospace" fontSize="8" letterSpacing="4" fill="rgba(255,255,255,.55)">
+          <textPath href="#ring" startOffset="0">{letters.repeat(3)}</textPath>
+        </text>
+      </svg>
+      <svg viewBox="-100 -100 200 200" width="180" height="180" style={{position:'absolute', inset:0, transform:`rotate(${rot2}deg)`}}>
+        {Array.from({length: 24}).map((_,i)=>{
+          const a = (i/24) * Math.PI * 2;
+          const x1 = Math.cos(a) * (r+18);
+          const y1 = Math.sin(a) * (r+18);
+          const x2 = Math.cos(a) * (r+24);
+          const y2 = Math.sin(a) * (r+24);
+          return <line key={i} x1={x1} y1={y1} x2={x2} y2={y2} stroke={i%6===0?accent:'rgba(255,255,255,.2)'} strokeWidth={i%6===0?1.4:0.6}/>;
+        })}
+      </svg>
+      {/* center mark */}
+      <div style={{
+        position:'absolute', inset:0, display:'grid', placeItems:'center',
+      }}>
+        <div style={{
+          width: 84, height: 84, borderRadius: 20,
+          background: `linear-gradient(135deg, ${accent}, ${accent}cc)`,
+          display:'grid', placeItems:'center',
+          boxShadow: `0 10px 30px ${accent}55, inset 0 1px 0 rgba(255,255,255,.25)`,
+          position:'relative', overflow:'hidden',
+        }}>
+          <svg viewBox="0 0 100 100" width="84" height="84" style={{position:'absolute', inset:0, opacity: 0.3}}>
+            <path d="M 10 70 L 30 30 L 50 55 L 70 20 L 90 70" fill="none" stroke="white" strokeWidth="2" strokeLinejoin="round"/>
+          </svg>
+          <span className="mono" style={{position:'relative', color:'white', fontWeight: 700, fontSize: 26, letterSpacing:'-0.02em'}}>MH</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ─────────── Login form ─────────── */
+function LoginCard({accent, compact}) {
+  const [email, setEmail]       = useState('mario.garcia@mmhighmetrik.pe');
+  const [pwd, setPwd]           = useState('');
+  const [showPwd, setShowPwd]   = useState(false);
+  const [remember, setRemember] = useState(true);
+  const [error, setError]       = useState('');
+  const [loading, setLoading]   = useState(false);
+  const [caps, setCaps]         = useState(false);
+
+  const emailInvalid = !!email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+
+  const submit = async () => {
+    // Login mock: cualquier click pasa al ERP (validación real queda para después)
+    setError('');
+    setLoading(true);
+    try {
+      const session = { email: email || 'guest@mmhighmetrik.pe', loginAt: new Date().toISOString(), remember };
+      (remember ? localStorage : sessionStorage).setItem('mm.erp.auth', JSON.stringify(session));
+    } catch(e) {}
+    showToast('Acceso concedido · Redirigiendo al dashboard…');
+    setTimeout(() => { window.location.href = 'index.html'; }, 600);
+  };
+
+  return (
+    <div style={{
+      width: '100%', maxWidth: compact ? 380 : 420,
+      display:'flex', flexDirection:'column', gap: 0,
+    }}>
+      <div style={{marginBottom: 36}}>
+        <WordMark accent={accent}/>
+      </div>
+
+      <div style={{marginBottom: 28}}>
+        <div className="mono" style={{fontSize: 11, letterSpacing:'0.16em', textTransform:'uppercase', color:'var(--muted)', marginBottom: 10}}>
+          Acceso · Portal de operaciones
+        </div>
+        <h1 style={{
+          fontSize: compact ? 28 : 32, lineHeight: 1.1, fontWeight: 600,
+          letterSpacing:'-0.02em', margin: 0, color:'var(--ink)',
+        }}>
+          Ingresa a tu tablero de obra.
+        </h1>
+        <p style={{marginTop: 12, color: 'var(--ink-2)', fontSize: 14.5, lineHeight: 1.5, maxWidth: 360}}>
+          Gestiona proyectos, valorizaciones, SEACE y alertas críticas desde un solo lugar.
+        </p>
+      </div>
+
+      {/* error strip */}
+      {error && (
+        <div style={{
+          display:'flex', alignItems:'flex-start', gap: 10,
+          padding:'12px 14px', borderRadius: 10,
+          background: '#FDECE9', border:'1px solid #F5C9C2',
+          color: 'var(--danger)', fontSize: 13.5, marginBottom: 18,
+        }}>
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={{marginTop:2, flexShrink:0}}>
+            <circle cx="8" cy="8" r="7" stroke="currentColor" strokeWidth="1.4"/>
+            <path d="M8 4.5 V 9" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
+            <circle cx="8" cy="11.2" r="0.9" fill="currentColor"/>
+          </svg>
+          <div>{error}</div>
+        </div>
+      )}
+
+      {/* email */}
+      <div style={{marginBottom: 18}}>
+        <Label htmlFor="email">Correo corporativo</Label>
+        <Field
+          id="email" type="email" value={email} onChange={setEmail}
+          placeholder="nombre@mmhighmetrik.pe"
+          autoComplete="username"
+          invalid={emailInvalid}
+          rightSlot={email && !emailInvalid && (
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={{color: 'var(--ok)', flexShrink:0}}>
+              <path d="M3 8.5 L6.5 12 L13 4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          )}
+        />
+      </div>
+
+      {/* password */}
+      <div style={{marginBottom: 14}}>
+        <Label htmlFor="pwd" hint={
+          <a href="#" onClick={e=>{e.preventDefault(); showToast('Se envió un enlace de recuperación a tu correo.');}}
+             style={{fontSize: 12.5, color: accent, textDecoration:'none', fontWeight: 500}}>
+            ¿Olvidaste tu contraseña?
+          </a>
+        }>Contraseña</Label>
+        <Field
+          id="pwd" type={showPwd ? 'text' : 'password'} value={pwd} onChange={setPwd}
+          placeholder="••••••••••"
+          autoComplete="current-password"
+          onFocus={e=>setCaps(e.getModifierState && e.getModifierState('CapsLock'))}
+          rightSlot={
+            <button onClick={()=>setShowPwd(s=>!s)} type="button" aria-label="mostrar contraseña"
+              style={{background:'transparent', border:'none', cursor:'pointer', padding: 6, color:'var(--muted)', display:'grid', placeItems:'center'}}>
+              {showPwd ? (
+                <svg width="18" height="18" viewBox="0 0 20 20" fill="none"><path d="M3 10 C5 6 7.5 4.5 10 4.5 C12.5 4.5 15 6 17 10 C15 14 12.5 15.5 10 15.5 C7.5 15.5 5 14 3 10Z" stroke="currentColor" strokeWidth="1.4"/><circle cx="10" cy="10" r="2.2" stroke="currentColor" strokeWidth="1.4"/><line x1="4" y1="16" x2="16" y2="4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/></svg>
+              ) : (
+                <svg width="18" height="18" viewBox="0 0 20 20" fill="none"><path d="M3 10 C5 6 7.5 4.5 10 4.5 C12.5 4.5 15 6 17 10 C15 14 12.5 15.5 10 15.5 C7.5 15.5 5 14 3 10Z" stroke="currentColor" strokeWidth="1.4"/><circle cx="10" cy="10" r="2.2" stroke="currentColor" strokeWidth="1.4"/></svg>
+              )}
+            </button>
+          }
+        />
+        {caps && (
+          <div className="mono" style={{marginTop: 8, fontSize: 11, color:'#B45309', letterSpacing:'0.04em'}}>
+            ⚠ Bloq. Mayús está activado
+          </div>
+        )}
+      </div>
+
+      {/* remember + 2FA indicator */}
+      <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom: 22}}>
+        <Check checked={remember} onChange={setRemember}>Mantener sesión iniciada</Check>
+        <div className="mono" style={{display:'inline-flex', alignItems:'center', gap: 8, fontSize: 11, color:'var(--muted)', letterSpacing:'0.08em'}}>
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+            <rect x="2.5" y="5" width="7" height="5" rx="1" stroke="currentColor" strokeWidth="1.1"/>
+            <path d="M4 5 V 3.5 C 4 2.3 4.9 1.5 6 1.5 C 7.1 1.5 8 2.3 8 3.5 V 5" stroke="currentColor" strokeWidth="1.1"/>
+          </svg>
+          2FA ACTIVO
+        </div>
+      </div>
+
+      <PrimaryBtn onClick={submit} loading={loading} accent={accent}
+        disabled={false}>
+        Entrar al ERP
+      </PrimaryBtn>
+
+      {/* divider + SSO */}
+      <div style={{display:'flex', alignItems:'center', gap: 14, margin: '24px 0 18px'}}>
+        <div style={{flex:1, height: 1, background:'var(--line)'}}/>
+        <span className="mono" style={{fontSize: 10.5, letterSpacing:'0.16em', color:'var(--muted)', textTransform:'uppercase'}}>
+          o continúa con
+        </span>
+        <div style={{flex:1, height: 1, background:'var(--line)'}}/>
+      </div>
+
+      <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap: 10}}>
+        <GhostBtn onClick={()=>showToast('SSO corporativo · Conectando a Microsoft Entra…')} icon={
+          <svg width="14" height="14" viewBox="0 0 16 16"><rect x="1" y="1" width="6.5" height="6.5" fill="#F25022"/><rect x="8.5" y="1" width="6.5" height="6.5" fill="#7FBA00"/><rect x="1" y="8.5" width="6.5" height="6.5" fill="#00A4EF"/><rect x="8.5" y="8.5" width="6.5" height="6.5" fill="#FFB900"/></svg>
+        }>Entra ID</GhostBtn>
+        <GhostBtn onClick={()=>showToast('Conexión con certificado digital RENIEC')} icon={
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><rect x="1.5" y="3" width="13" height="10" rx="1.5" stroke="currentColor" strokeWidth="1.2"/><circle cx="5.5" cy="8" r="1.6" stroke="currentColor" strokeWidth="1.2"/><path d="M9 7 H 13 M9 9.5 H 12" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/></svg>
+        }>Certificado digital</GhostBtn>
+      </div>
+
+      {/* footer micro */}
+      <div style={{marginTop: 36, display:'flex', justifyContent:'space-between', alignItems:'center'}}>
+        <div className="mono" style={{fontSize: 10.5, color:'var(--muted)', letterSpacing:'0.08em'}}>
+          © 2026 MMHIGHMETRIK · v4.2.1
+        </div>
+        <div style={{display:'flex', gap: 16}}>
+          {['Soporte','Privacidad','Términos'].map(t=>(
+            <a key={t} href="#" onClick={e=>e.preventDefault()} style={{fontSize: 12, color:'var(--muted)', textDecoration:'none'}}>{t}</a>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ─────────── Toast ─────────── */
+let toastSetter = null;
+function showToast(msg) { if (toastSetter) toastSetter(msg); }
+function ToastHost() {
+  const [msg, setMsg] = useState(null);
+  useEffect(()=>{ toastSetter = (m)=>{ setMsg(m); setTimeout(()=>setMsg(null), 3200); }; return ()=>{ toastSetter = null; }; }, []);
+  return (
+    <div style={{
+      position:'fixed', bottom: 24, left: '50%', transform:'translateX(-50%)',
+      pointerEvents:'none', zIndex: 100, transition: 'opacity .3s, transform .3s',
+      opacity: msg ? 1 : 0,
+    }}>
+      {msg && (
+        <div style={{
+          display:'inline-flex', alignItems:'center', gap: 10,
+          background: 'var(--ink)', color:'white', borderRadius: 10,
+          padding: '12px 18px', fontSize: 13.5, fontWeight: 500,
+          boxShadow: '0 10px 30px rgba(0,0,0,.2)',
+        }}>
+          <span style={{width: 6, height: 6, borderRadius:'50%', background:'#4ADE80'}}/>
+          {msg}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ─────────── Layouts ─────────── */
+function SplitLayout({accent, ticker, compact}) {
+  return (
+    <div style={{
+      display:'grid', gridTemplateColumns: compact ? '1fr' : 'minmax(480px, 1fr) minmax(520px, 1.05fr)',
+      height:'100vh', width:'100vw',
+    }}>
+      <div style={{
+        display:'flex', alignItems:'center', justifyContent:'center',
+        padding: '48px 60px', background: 'var(--bg)',
+        position:'relative',
+      }}>
+        <TopBarMini/>
+        <LoginCard accent={accent} compact={compact}/>
+      </div>
+      {!compact && (
+        <div style={{position:'relative'}}>
+          <SideBlueprint accent={accent} ticker={ticker}/>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function CenteredLayout({accent}) {
+  return (
+    <div style={{
+      minHeight:'100vh', width:'100vw',
+      display:'grid', placeItems:'center', padding: 40,
+      background: `
+        radial-gradient(ellipse 800px 400px at 50% -10%, ${accent}14, transparent 60%),
+        repeating-linear-gradient(0deg, transparent 0 39px, rgba(15,17,21,0.035) 39px 40px),
+        repeating-linear-gradient(90deg, transparent 0 39px, rgba(15,17,21,0.035) 39px 40px),
+        var(--bg)
+      `,
+      position: 'relative',
+    }}>
+      <TopBarMini/>
+      <div style={{
+        maxWidth: 460, width: '100%',
+        background: 'white', borderRadius: 16,
+        border: '1px solid var(--line)',
+        padding: '44px 44px 36px',
+        boxShadow: '0 1px 2px rgba(0,0,0,.04), 0 20px 50px -20px rgba(0,0,0,.12)',
+      }}>
+        <LoginCard accent={accent} compact/>
+      </div>
+    </div>
+  );
+}
+
+function FramedLayout({accent, ticker}) {
+  return (
+    <div style={{
+      minHeight:'100vh', width:'100vw',
+      background: 'var(--ink)',
+      padding: 16, display:'flex',
+    }}>
+      <div style={{
+        flex: 1, display:'grid', gridTemplateColumns: 'minmax(440px, 1fr) 1.1fr',
+        borderRadius: 18, overflow:'hidden', background: 'var(--bg)',
+        boxShadow: '0 0 0 1px rgba(255,255,255,.06)',
+      }}>
+        <div style={{display:'flex', alignItems:'center', justifyContent:'center', padding:'48px 60px', position:'relative'}}>
+          <TopBarMini/>
+          <LoginCard accent={accent}/>
+        </div>
+        <SideBlueprint accent={accent} ticker={ticker}/>
+      </div>
+    </div>
+  );
+}
+
+function TopBarMini() {
+  return (
+    <div style={{
+      position:'absolute', top: 24, right: 32,
+      display:'flex', gap: 10, alignItems:'center',
+    }}>
+      <div className="mono" style={{fontSize: 11, color:'var(--muted)', letterSpacing:'0.08em'}}>
+        ¿No tienes cuenta?
+      </div>
+      <a href="#" onClick={e=>{e.preventDefault(); showToast('Contacta a tu administrador para crear una cuenta corporativa.');}}
+         style={{
+           fontSize: 12.5, color:'var(--ink)', textDecoration:'none',
+           padding: '8px 14px', border:'1px solid var(--line)', borderRadius: 8,
+           fontWeight: 500, background:'white',
+         }}>
+        Solicitar acceso →
+      </a>
+    </div>
+  );
+}
+
+/* ─────────── Tweaks panel ─────────── */
+function TweaksPanel({state, setState}) {
+  const [open, setOpen] = useState(true);
+
+  const setKey = (k, v) => {
+    setState(s=>{ const next = {...s, [k]:v}; persist(next); return next; });
+  };
+  const persist = (obj) => {
+    try {
+      window.parent.postMessage({type:'__edit_mode_set_keys', edits: obj}, '*');
+    } catch(e){}
+  };
+
+  const Row = ({label, children}) => (
+    <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', padding:'10px 14px', borderTop:'1px solid var(--line-2)'}}>
+      <span className="mono" style={{fontSize: 10.5, letterSpacing:'0.1em', color:'var(--muted)', textTransform:'uppercase'}}>{label}</span>
+      {children}
+    </div>
+  );
+
+  const SegBtn = ({active, onClick, children}) => (
+    <button onClick={onClick} style={{
+      padding:'6px 10px', fontSize: 12, borderRadius: 6, cursor:'pointer',
+      border: '1px solid ' + (active ? 'var(--ink)' : 'var(--line)'),
+      background: active ? 'var(--ink)' : 'white',
+      color: active ? 'white' : 'var(--ink-2)', fontWeight: 500,
+    }}>{children}</button>
+  );
+
+  return (
+    <div style={{
+      position:'fixed', bottom: 20, right: 20, zIndex: 200,
+      background: 'white', border:'1px solid var(--line)', borderRadius: 12,
+      boxShadow: '0 12px 30px rgba(0,0,0,.12)', width: 280,
+      overflow:'hidden', fontSize: 13,
+    }}>
+      <button onClick={()=>setOpen(o=>!o)} style={{
+        width:'100%', border:'none', background:'var(--ink)', color:'white',
+        padding:'12px 14px', textAlign:'left', cursor:'pointer',
+        display:'flex', justifyContent:'space-between', alignItems:'center',
+      }}>
+        <span className="mono" style={{fontSize: 11, letterSpacing:'0.16em'}}>TWEAKS</span>
+        <span style={{fontSize: 14, transform: open?'rotate(0)':'rotate(180deg)', transition:'transform .2s'}}>⌄</span>
+      </button>
+      {open && (
+        <div>
+          <Row label="Layout">
+            <div style={{display:'flex', gap: 4}}>
+              <SegBtn active={state.variant==='split-map'} onClick={()=>setKey('variant','split-map')}>Split</SegBtn>
+              <SegBtn active={state.variant==='centered'}  onClick={()=>setKey('variant','centered')}>Centrado</SegBtn>
+              <SegBtn active={state.variant==='framed'}    onClick={()=>setKey('variant','framed')}>Frame</SegBtn>
+            </div>
+          </Row>
+          <Row label="Acento">
+            <div style={{display:'flex', gap: 6}}>
+              {Object.entries(ACCENTS).map(([k,v])=>(
+                <button key={k} onClick={()=>setKey('accent', k)} title={v.name}
+                  style={{
+                    width: 22, height: 22, borderRadius: 6, background: v.c,
+                    border: state.accent===k ? '2px solid var(--ink)' : '1px solid var(--line)',
+                    cursor:'pointer', padding: 0,
+                  }}/>
+              ))}
+            </div>
+          </Row>
+          <Row label="Ticker lateral">
+            <Check checked={state.showSideTicker} onChange={(v)=>setKey('showSideTicker', v)}>&nbsp;</Check>
+          </Row>
+          <Row label="Modo compacto">
+            <Check checked={state.compactMode} onChange={(v)=>setKey('compactMode', v)}>&nbsp;</Check>
+          </Row>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ─────────── App ─────────── */
+function App() {
+  const [state, setState] = useState(() => {
+    try { return {...window.TWEAK_DEFAULTS}; } catch(e) { return {variant:'split-map', accent:'indigo', showSideTicker:true, compactMode:false}; }
+  });
+  const [tweaksOn, setTweaksOn] = useState(false);
+
+  // Auto-redirect si ya hay sesión activa
+  useEffect(()=>{
+    try {
+      const session = localStorage.getItem('mm.erp.auth') || sessionStorage.getItem('mm.erp.auth');
+      if (session) {
+        const params = new URLSearchParams(window.location.search);
+        if (!params.has('force')) window.location.href = 'index.html';
+      }
+    } catch(e) {}
+  }, []);
+
+  useEffect(()=>{
+    const onMsg = (e) => {
+      if (!e.data) return;
+      if (e.data.type === '__activate_edit_mode')   setTweaksOn(true);
+      if (e.data.type === '__deactivate_edit_mode') setTweaksOn(false);
+    };
+    window.addEventListener('message', onMsg);
+    try { window.parent.postMessage({type:'__edit_mode_available'}, '*'); } catch(e){}
+    return () => window.removeEventListener('message', onMsg);
+  }, []);
+
+  const accent = ACCENTS[state.accent]?.c || ACCENTS.indigo.c;
+
+  let layout;
+  if (state.variant === 'centered')   layout = <CenteredLayout accent={accent}/>;
+  else if (state.variant === 'framed') layout = <FramedLayout accent={accent} ticker={state.showSideTicker}/>;
+  else layout = <SplitLayout accent={accent} ticker={state.showSideTicker} compact={state.compactMode}/>;
+
+  return (
+    <>
+      <style>{`
+        @keyframes spin { to { transform: rotate(360deg); } }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+      `}</style>
+      {layout}
+      <ToastHost/>
+      {tweaksOn && <TweaksPanel state={state} setState={setState}/>}
+    </>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
+</body>
+</html>

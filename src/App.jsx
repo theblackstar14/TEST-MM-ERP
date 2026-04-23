@@ -1,7 +1,20 @@
-/* global React, ReactDOM, Sidebar, Topbar, Tweaks, Copilot, DashboardPage, ProjectDetail, LicitacionesPage, SeacePage, ProyectosPage, PresupuestoPage, ComparadorPage, GanttPage, FinanzasPage, ComprasPage, InventarioPage, ContabilidadPage, PersonalPage, DocsPage, StubPage, Icon, ERP_DATA */
+/* global React, ReactDOM, Sidebar, Topbar, Tweaks, Copilot, DashboardPage, ProjectDetail, LicitacionesPage, SeacePage, ProyectosPage, PresupuestoPage, ComparadorPage, GanttPage, FinanzasPage, ComprasPage, InventarioPage, ContabilidadPage, PersonalPage, DocsPage, StubPage, LoginPage, Icon, ERP_DATA */
 const { useState, useEffect, useMemo } = React;
 
 function App() {
+  // Auth: lee sesión persistida al montar. Si falta → render LoginPage
+  const [session, setSession] = useState(() => {
+    try {
+      const raw = localStorage.getItem('mm.erp.auth') || sessionStorage.getItem('mm.erp.auth');
+      return raw ? JSON.parse(raw) : null;
+    } catch (e) { return null; }
+  });
+
+  const handleLogout = () => {
+    try { localStorage.removeItem('mm.erp.auth'); sessionStorage.removeItem('mm.erp.auth'); } catch (e) { }
+    setSession(null);
+  };
+
   const [route, setRoute] = useState('dashboard');
   const [projectDrill, setProjectDrill] = useState(null);
   const [tweaks, setTweaks] = useState({ theme: 'light', sidebar: 'full', accent: 'blue' });
@@ -12,6 +25,11 @@ function App() {
   useEffect(() => {
     document.body.setAttribute('data-theme', tweaks.theme);
   }, [tweaks.theme]);
+
+  // Gate: sin sesión → login screen
+  if (!session) {
+    return <LoginPage onLogin={setSession} />;
+  }
 
   const nav = (r) => { setRoute(r); setProjectDrill(null); if (window.innerWidth < 1000) setTweaks({ ...tweaks, sidebar: 'collapsed' }); };
 
@@ -38,7 +56,7 @@ function App() {
 
   return (
     <div className="app" data-sb={tweaks.sidebar}>
-      <Sidebar route={route} onNav={nav} />
+      <Sidebar route={route} onNav={nav} onLogout={handleLogout} session={session} />
       <main className="main">
         <Topbar
           crumbs={crumbs}

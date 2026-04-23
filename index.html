@@ -37,14 +37,58 @@
   window.ANTHROPIC_KEY = "";
   window.SEACE_API = "https://seace-scraper-api.vercel.app";
 </script>
+
 <style>
   /* Fix for Leaflet tooltips style to match ERP */
   .leaflet-container { font-family: var(--sans) !important; background: var(--bg-sunken) !important; }
   .leaflet-popup-content-wrapper { border-radius: 8px !important; box-shadow: var(--shadow-md) !important; background: var(--bg-elev) !important; color: var(--ink) !important; }
   .leaflet-popup-tip { background: var(--bg-elev) !important; }
+
+  /* ── Splash inicial · oculta el blanco mientras Babel compila los JSX ── */
+  #mm-splash {
+    position: fixed; inset: 0; z-index: 99999;
+    background: #F7F7F5;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 22px; font-family: 'Inter', -apple-system, sans-serif;
+    transition: opacity .35s ease, visibility .35s ease;
+  }
+  #mm-splash.fade { opacity: 0; visibility: hidden; pointer-events: none; }
+  #mm-splash .logo {
+    width: 56px; height: 56px; border-radius: 12px;
+    background: linear-gradient(135deg, #3B5BDB, #2A44B8);
+    display: grid; place-items: center;
+    color: #fff; font-weight: 700; font-size: 22px;
+    font-family: 'JetBrains Mono', monospace; letter-spacing: -0.02em;
+    box-shadow: 0 10px 30px rgba(59,91,219,.35), inset 0 1px 0 rgba(255,255,255,.25);
+    animation: mm-pulse 1.6s ease-in-out infinite;
+  }
+  #mm-splash .wm1 { font-size: 15px; font-weight: 700; letter-spacing: -0.01em; color: #0F1115; }
+  #mm-splash .wm2 { font-size: 10.5px; letter-spacing: 0.12em; color: #8A8F98; text-transform: uppercase; font-family: 'JetBrains Mono', monospace; margin-top: 3px; }
+  #mm-splash .bar { width: 180px; height: 2px; background: #E6E6E3; border-radius: 2px; overflow: hidden; margin-top: 10px; }
+  #mm-splash .bar::after {
+    content: ''; display: block; width: 40%; height: 100%;
+    background: #3B5BDB; border-radius: 2px;
+    animation: mm-slide 1.2s ease-in-out infinite;
+  }
+  @keyframes mm-pulse {
+    0%, 100% { transform: scale(1); box-shadow: 0 10px 30px rgba(59,91,219,.35), inset 0 1px 0 rgba(255,255,255,.25); }
+    50% { transform: scale(1.05); box-shadow: 0 14px 40px rgba(59,91,219,.5), inset 0 1px 0 rgba(255,255,255,.25); }
+  }
+  @keyframes mm-slide {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(350%); }
+  }
 </style>
 </head>
 <body>
+<div id="mm-splash">
+  <div class="logo">MM</div>
+  <div style="text-align:center">
+    <div class="wm1">MMHIGHMETRIK</div>
+    <div class="wm2">Engineers ERP</div>
+  </div>
+  <div class="bar"></div>
+</div>
 <div id="root"></div>
 
 <!-- 1. Data & Icons -->
@@ -59,6 +103,7 @@
 <script type="text/babel" src="src/components/layout/Copilot.jsx"></script>
 
 <!-- 3. Modules -->
+<script type="text/babel" src="src/modules/login/LoginPage.jsx"></script>
 <script type="text/babel" src="src/modules/shared/StubPage.jsx"></script>
 <script type="text/babel" src="src/modules/dashboard/DashboardPage.jsx"></script>
 <script type="text/babel" src="src/modules/dashboard/KpiOperativosModal.jsx"></script>
@@ -85,6 +130,14 @@
 <script type="text/babel">
   const root = ReactDOM.createRoot(document.getElementById('root'));
   root.render(<App />);
+  // Oculta splash tras primer paint real (rAF doble garantiza layout listo)
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    const s = document.getElementById('mm-splash');
+    if (s) {
+      s.classList.add('fade');
+      setTimeout(() => s.remove(), 400);
+    }
+  }));
 </script>
 </body>
 </html>

@@ -1,7 +1,7 @@
 /* global React, Icon */
 const { useState } = React;
 
-function Sidebar({ route, onNav }) {
+function Sidebar({ route, onNav, onLogout, session }) {
   const items = [
     { id: 'dashboard', label: 'Dashboard', icon: 'dash', section: 'operación' },
     { id: 'licitaciones', label: 'Licitaciones', icon: 'bid', section: 'operación', badge: '9' },
@@ -54,6 +54,24 @@ function Sidebar({ route, onNav }) {
           <div className="t1">Mario Garcia</div>
           <div className="t2">Ing. proyectos</div>
         </div>
+        <button
+          onClick={() => { onLogout && onLogout(); }}
+          title={'Cerrar sesión' + (session?.email ? ' · ' + session.email : '')}
+          style={{
+            marginLeft: 'auto', width: 28, height: 28, borderRadius: 6,
+            border: '1px solid var(--line)', background: 'var(--bg-elev)',
+            color: 'var(--ink-3)', cursor: 'pointer',
+            display: 'grid', placeItems: 'center',
+          }}
+          onMouseEnter={e => { e.currentTarget.style.color = 'var(--danger)'; e.currentTarget.style.borderColor = 'var(--danger)'; }}
+          onMouseLeave={e => { e.currentTarget.style.color = 'var(--ink-3)'; e.currentTarget.style.borderColor = 'var(--line)'; }}
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+            <path d="M16 17l5-5-5-5"/>
+            <path d="M21 12H9"/>
+          </svg>
+        </button>
       </div>
     </aside>
   );

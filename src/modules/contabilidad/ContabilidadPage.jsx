@@ -604,6 +604,91 @@ function synthAsientoFromMov(mov, cuentaPCGE, idx) {
   };
 }
 
+// ═══════════════════════════════════════════════════════════════
+// SIMULACIÓN TUTORIAL · dataset con discrepancias controladas
+// Diseñado para que los 4 métodos (aritmético / contable / 4 col / matching)
+// arrojen el saldo conciliado correcto = 3,620
+//
+// Target: saldo libro 2,100 · saldo banco 3,620
+// Fórmula: 2100 − 105 (cargos solo banco) + 25 (abonos solo banco)
+//                 − 0   (débitos solo libro) + 1600 (créditos solo libro) = 3,620 ✓
+// ═══════════════════════════════════════════════════════════════
+function buildSimulacionTutorial(cuentaId) {
+  const PCGE = BANK_TO_PCGE[cuentaId] || '10411';
+  const APERTURA = 4800; // hace que saldo libro = 2100 y saldo banco = 3620
+
+  // Asientos libro auxiliar — lo que la empresa SÍ contabilizó
+  const asientos = [
+    // Apertura (periodo anterior ya conciliado · fuera del rango abril)
+    { id: 'SIM-000', fecha: '2026-03-31', glosa: 'Saldo inicial conciliado (cierre marzo)', docOrigen: 'APERTURA', revisado: true,
+      lineas: [{ cuenta: PCGE, debe: APERTURA, haber: 0 }, { cuenta: '591', debe: 0, haber: APERTURA }] },
+
+    // Matches con banco (verde)
+    { id: 'SIM-001', fecha: '2026-04-03', glosa: 'Depósito cliente ACME SAC', docOrigen: 'DEP-001', revisado: true,
+      lineas: [{ cuenta: PCGE, debe: 1600, haber: 0 }, { cuenta: '1212', debe: 0, haber: 1600 }] },
+    { id: 'SIM-002', fecha: '2026-04-06', glosa: 'Retiro efectivo para caja chica', docOrigen: 'RET-001', revisado: true,
+      lineas: [{ cuenta: '1011', debe: 1000, haber: 0 }, { cuenta: PCGE, debe: 0, haber: 1000 }] },
+    { id: 'SIM-003', fecha: '2026-04-15', glosa: 'Préstamo bancario 30 días', docOrigen: 'PRE-001', revisado: true,
+      lineas: [{ cuenta: PCGE, debe: 10000, haber: 0 }, { cuenta: '451', debe: 0, haber: 10000 }] },
+    { id: 'SIM-004', fecha: '2026-04-19', glosa: 'Retiro efectivo para planilla', docOrigen: 'RET-002', revisado: true,
+      lineas: [{ cuenta: '1011', debe: 14000, haber: 0 }, { cuenta: PCGE, debe: 0, haber: 14000 }] },
+    { id: 'SIM-005', fecha: '2026-04-22', glosa: 'Depósito cliente Beta EIRL', docOrigen: 'DEP-002', revisado: true,
+      lineas: [{ cuenta: PCGE, debe: 4300, haber: 0 }, { cuenta: '1212', debe: 0, haber: 4300 }] },
+    { id: 'SIM-006', fecha: '2026-04-24', glosa: 'Cheque 004 cobrado · proveedor', docOrigen: 'CHQ-004', revisado: true,
+      lineas: [{ cuenta: '4212', debe: 2000, haber: 0 }, { cuenta: PCGE, debe: 0, haber: 2000 }] },
+
+    // Solo en libro — cheques girados no cobrados (NO contabilizar, solo identificar)
+    { id: 'SIM-007', fecha: '2026-04-06', glosa: 'Cheque 001 girado · Proveedor Gamma', docOrigen: 'CHQ-001', revisado: true,
+      lineas: [{ cuenta: '4212', debe: 500, haber: 0 }, { cuenta: PCGE, debe: 0, haber: 500 }] },
+    { id: 'SIM-008', fecha: '2026-04-10', glosa: 'Cheque 002 girado · Servicios SA', docOrigen: 'CHQ-002', revisado: true,
+      lineas: [{ cuenta: '4212', debe: 400, haber: 0 }, { cuenta: PCGE, debe: 0, haber: 400 }] },
+
+    // Solo en libro — pago nocturno (banco lo verá en mayo)
+    { id: 'SIM-009', fecha: '2026-04-30', glosa: 'Pago préstamo (procesado 22:30h)', docOrigen: 'PAG-PRE-001', revisado: true,
+      lineas: [{ cuenta: '451', debe: 700, haber: 0 }, { cuenta: PCGE, debe: 0, haber: 700 }] },
+  ];
+
+  // Estado de cuenta — lo que el banco reportó
+  const movimientos = [
+    // Apertura banco
+    // Matches con libro (verde)
+    { fecha: '2026-04-03', descripcion: 'Depósito cliente ACME SAC', ref: 'DEP-BCO-001', cargo: 0, abono: 1600, saldo: 6400 },
+    { fecha: '2026-04-05', descripcion: 'Retiro ventanilla', ref: 'RET-BCO-001', cargo: 1000, abono: 0, saldo: 5400 },
+
+    // Solo banco — notas débito (comisiones)
+    { fecha: '2026-04-12', descripcion: 'MANT CUENTA · Comisión uso chequera', ref: 'COM-CHEK', cargo: 20, abono: 0, saldo: 5380 },
+    { fecha: '2026-04-12', descripcion: 'IGV Chequera 18%', ref: 'IGV-CHEK', cargo: 4, abono: 0, saldo: 5376 },
+
+    { fecha: '2026-04-15', descripcion: 'Préstamo desembolsado', ref: 'PRE-BCO-001', cargo: 0, abono: 10000, saldo: 15376 },
+    { fecha: '2026-04-15', descripcion: 'Comisión Estudio Crédito', ref: 'COM-EST', cargo: 20, abono: 0, saldo: 15356 },
+
+    { fecha: '2026-04-19', descripcion: 'Retiro ventanilla', ref: 'RET-BCO-002', cargo: 14000, abono: 0, saldo: 1356 },
+    { fecha: '2026-04-19', descripcion: 'GMF Impuesto Movimientos Financieros 0.4%', ref: 'GMF-001', cargo: 56, abono: 0, saldo: 1300 },
+
+    { fecha: '2026-04-22', descripcion: 'Depósito cliente Beta EIRL', ref: 'DEP-BCO-002', cargo: 0, abono: 4300, saldo: 5600 },
+    { fecha: '2026-04-24', descripcion: 'Cheque 004 cobrado', ref: 'CHQ-BCO-004', cargo: 2000, abono: 0, saldo: 3600 },
+
+    // Solo banco — intereses sobregiro + intereses ganados
+    { fecha: '2026-04-30', descripcion: 'Intereses Sobregiro', ref: 'INT-SOB', cargo: 5, abono: 0, saldo: 3595 },
+    { fecha: '2026-04-30', descripcion: 'Intereses Ganados Cuenta', ref: 'INT-GAN', cargo: 0, abono: 25, saldo: 3620 },
+  ];
+
+  const estadoCuenta = {
+    id: 'SIM-EST-TUTORIAL',
+    cuentaId,
+    banco: BANK_TO_PCGE[cuentaId] ? cuentaId.split('-')[0] : 'BCP',
+    periodo: 'Abril 2026 · Simulación',
+    saldoInicial: APERTURA,
+    saldoFinal: 3620,
+    fechaDesde: '2026-04-01',
+    fechaHasta: '2026-04-30',
+    movimientos,
+    _simulacion: true,
+  };
+
+  return { asientos, estadoCuenta };
+}
+
 function CtbBancosView() {
   const [cuentaSel, setCuentaSel] = useState('BCP-SOL');
   const [estadosOverride, setEstadosOverride] = useState({}); // { cuentaId: estadoParseado }
@@ -613,7 +698,8 @@ function CtbBancosView() {
   // Mezcla: si hay override para esta cuenta, usa ese; sino, mock
   const cartolaMock = cartolasBancarias.find(c => c.cuentaId === cuentaSel);
   const cartola = estadosOverride[cuentaSel] || cartolaMock;
-  const isReal = !!estadosOverride[cuentaSel];
+  const isReal = !!(estadosOverride[cuentaSel] && !estadosOverride[cuentaSel]._simulacion);
+  const isSim = !!(estadosOverride[cuentaSel] && estadosOverride[cuentaSel]._simulacion);
   const extraAsientos = asientosOverride[cuentaSel];
 
   const handleParsed = (parsed) => {
@@ -650,27 +736,43 @@ function CtbBancosView() {
     setAsientosOverride(prev => { const cp = { ...prev }; delete cp[cuentaSel]; return cp; });
   };
 
+  const handleLoadSimulation = () => {
+    const { asientos, estadoCuenta } = buildSimulacionTutorial(cuentaSel);
+    setEstadosOverride(prev => ({ ...prev, [cuentaSel]: estadoCuenta }));
+    setAsientosOverride(prev => ({ ...prev, [cuentaSel]: asientos }));
+  };
+
   return (
     <div className="vstack" style={{ gap: 14 }}>
-      {/* Barra TEST · cargar estado real */}
-      <div className="hstack" style={{ gap: 8, padding: '10px 14px', background: 'linear-gradient(90deg, rgba(255,165,0,0.08), rgba(59,91,219,0.08))', border: '1px dashed var(--warn)', borderRadius: 8 }}>
+      {/* Barra TEST · cargar estado real / simulación tutorial */}
+      <div className="hstack" style={{ gap: 8, padding: '10px 14px', background: 'linear-gradient(90deg, rgba(255,165,0,0.08), rgba(59,91,219,0.08))', border: '1px dashed var(--warn)', borderRadius: 8, flexWrap: 'wrap' }}>
         <div style={{ fontSize: 11, fontFamily: 'var(--mono)', color: 'var(--warn-ink)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
           🧪 Modo test
         </div>
-        <div style={{ fontSize: 12, color: 'var(--ink-2)', flex: 1 }}>
-          Carga un PDF real de estado de cuenta BCP (con password DNI) y el parser lo analiza reemplazando el mock de la cuenta seleccionada.
+        <div style={{ fontSize: 12, color: 'var(--ink-2)', flex: 1, minWidth: 240 }}>
+          {isSim
+            ? <><b>Simulación tutorial activa</b> · Saldo libro 2,100 · Saldo banco 3,620 · Los 4 métodos cuadran en 3,620 / 2,020</>
+            : <>Cargar simulación con discrepancias controladas <b>o</b> un PDF BCP real (password DNI) para probar conciliación.</>}
         </div>
-        {isReal && (
+        {(isReal || isSim) && (
           <button className="tb-btn" onClick={clearReal} style={{ fontSize: 11, color: 'var(--warn-ink)', borderColor: 'var(--warn)' }}>
             {Icon.history({ size: 12 })} Volver al mock
           </button>
         )}
         <button
+          className="tb-btn"
+          onClick={handleLoadSimulation}
+          style={{ background: '#2F5D3A', border: 'none', color: '#fff', fontWeight: 600, fontSize: 12 }}
+          title="Dataset con 10 asientos y 11 movs banco · 6 matches + 5 notas débito + 1 NC + 3 cheques pendientes"
+        >
+          🎓 TEST · Simulación tutorial
+        </button>
+        <button
           className="tb-btn primary"
           onClick={() => setUploadOpen(true)}
           style={{ background: 'linear-gradient(135deg, #f59e0b, #3B5BDB)', border: 'none', color: '#fff', fontWeight: 600 }}
         >
-          {Icon.upload({ size: 13 })} TEST · Cargar estado de cuenta real (PDF)
+          {Icon.upload({ size: 13 })} TEST · Cargar PDF BCP real
         </button>
       </div>
 
@@ -691,8 +793,8 @@ function CtbBancosView() {
               }}
             >
               {realOverride && (
-                <span style={{ position: 'absolute', top: 8, right: 8, fontSize: 9, padding: '2px 6px', borderRadius: 3, background: 'var(--ok)', color: '#fff', fontWeight: 700, fontFamily: 'var(--mono)' }}>
-                  PDF REAL
+                <span style={{ position: 'absolute', top: 8, right: 8, fontSize: 9, padding: '2px 6px', borderRadius: 3, background: realOverride._simulacion ? '#2F5D3A' : 'var(--ok)', color: '#fff', fontWeight: 700, fontFamily: 'var(--mono)' }}>
+                  {realOverride._simulacion ? '🎓 SIMULACIÓN' : 'PDF REAL'}
                 </span>
               )}
               <div className="hstack between" style={{ marginBottom: 6 }}>
@@ -881,10 +983,661 @@ function CtbUploadEstadoModal({ onClose, onParsed }) {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// CONCILIACIÓN — side-by-side matching cartola vs asientos
+// HELPERS · Clasificador de mov bancario → categoría contable
+// ═══════════════════════════════════════════════════════════════
+function classifyMov(mov) {
+  const g = (mov.descripcion || '').toUpperCase();
+  const esCargo = mov.cargo > 0;
+  if (/MANT\.?\s*CUENTA|MANTENIMIENTO|COMISION.*BCO|COMISION.*BANC|COMISION TRF|PORTES|CUOTA MANEJO/.test(g))
+    return { cat: 'notaDebito', sub: 'Comisión bancaria', cuenta: '6732' };
+  if (/ITF|IMPUESTO.*FINANC|GMF|GRAVAMEN/.test(g))
+    return { cat: 'impuesto', sub: 'ITF / GMF', cuenta: '641' };
+  if (/INTERES.*SOBREGIRO|SOBREGIRO/.test(g))
+    return { cat: 'notaDebito', sub: 'Intereses sobregiro', cuenta: '6732' };
+  if (/COMISION.*CREDITO|ESTUDIO.*CREDITO/.test(g))
+    return { cat: 'notaDebito', sub: 'Comisión estudio crédito', cuenta: '6732' };
+  if (/\bIVA\b|\bIGV\b/.test(g))
+    return { cat: 'impuesto', sub: 'IGV retenido', cuenta: '40112' };
+  if (/INTERES.*GANAD|RENDIMIENTO|INTERESES A FAVOR/.test(g))
+    return { cat: 'notaCredito', sub: 'Intereses ganados', cuenta: '775' };
+  if (/CHEQUE/.test(g) && esCargo)
+    return { cat: 'cheque', sub: 'Cheque cobrado', cuenta: null };
+  if (/DETRACCION|SPOT/.test(g))
+    return { cat: 'impuesto', sub: 'Detracción SPOT', cuenta: '4071' };
+  if (!esCargo && /DEPOSITO|ABONO|COBRO|RECEP|TRANSF\s*REC|TRF\s*REC/.test(g))
+    return { cat: 'deposito', sub: 'Cobro cliente en tránsito', cuenta: '1212' };
+  if (/YAPE|PLIN|TRANSF/.test(g))
+    return esCargo
+      ? { cat: 'notaDebito', sub: 'Transferencia enviada', cuenta: '659' }
+      : { cat: 'deposito', sub: 'Transferencia recibida', cuenta: '759' };
+  return { cat: 'otro', sub: 'Otro movimiento', cuenta: esCargo ? '659' : '759' };
+}
+
+// ═══════════════════════════════════════════════════════════════
+// MÉTODO 1 · ARITMÉTICO — saldo libro ± ajustes = saldo banco
+// ═══════════════════════════════════════════════════════════════
+// Detecta asientos de libro que explican la diferencia (no requieren nuevo asiento)
+// Cheques girados no cobrados y pagos en horario nocturno
+function isAsientoEnTransito(a) {
+  const g = (a.glosa || '').toUpperCase();
+  return /CHEQUE.*GIRAD|GIRAD.*CHEQUE|22:\d{2}|23:\d{2}|NOCTURN|PROCESAD.*\d\d:\d\d/.test(g);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// SIDE-BY-SIDE compartido · asientos ERP ⇄ movs banco
+// Soporta drag-drop: arrastra mov banco → dropea en columna ERP → crea asiento
+// ═══════════════════════════════════════════════════════════════
+function CtbSideBySide({ cartola, asientosBancarios, matching, onCrearAsiento, maxHeight = 360 }) {
+  const asientosMatched = new Set(matching.values());
+  const [dragOver, setDragOver] = useState(false);
+  const [draggingIdx, setDraggingIdx] = useState(null);
+
+  const handleDragOver = (e) => { e.preventDefault(); setDragOver(true); };
+  const handleDragLeave = () => setDragOver(false);
+  const handleDrop = (e) => {
+    e.preventDefault(); setDragOver(false);
+    const idxStr = e.dataTransfer.getData('movIdx');
+    if (idxStr === '') return;
+    const mov = cartola.movimientos[parseInt(idxStr, 10)];
+    if (mov && onCrearAsiento) onCrearAsiento(mov);
+  };
+
+  const dropZoneStyle = {
+    background: dragOver ? 'var(--accent-soft)' : 'transparent',
+    transition: 'background .15s',
+    outline: dragOver ? '2px dashed var(--accent)' : 'none',
+    outlineOffset: -4,
+  };
+
+  return (
+    <div style={{ padding: 0, display: 'grid', gridTemplateColumns: '1fr 52px 1fr', gap: 0, borderBottom: '1px solid var(--line)' }}>
+      {/* Columna izquierda · ERP Asientos (drop zone) */}
+      <div onDragOver={handleDragOver} onDragLeave={handleDragLeave} onDrop={handleDrop} style={dropZoneStyle}>
+        <div style={{ padding: '8px 14px', background: 'var(--bg-sunken)', borderBottom: '1px solid var(--line)', fontSize: 10, fontFamily: 'var(--mono)', textTransform: 'uppercase', fontWeight: 700, color: 'var(--ink-3)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <span>ERP · Asientos ({asientosBancarios.length})</span>
+          <span style={{ fontSize: 9, color: 'var(--accent)', fontWeight: 600 }}>⇐ suelta aquí</span>
+        </div>
+        <div style={{ maxHeight, overflowY: 'auto' }}>
+          {asientosBancarios.length === 0 && (
+            <div style={{ padding: 24, textAlign: 'center', color: 'var(--ink-4)', fontSize: 11 }}>Sin asientos · arrastra movs del banco para generar</div>
+          )}
+          {asientosBancarios.map(a => {
+            const matched = asientosMatched.has(a.id);
+            const enTransito = !matched && isAsientoEnTransito(a);
+            const borderColor = matched ? 'var(--ok)' : enTransito ? 'var(--accent)' : 'var(--warn)';
+            const bgColor = matched ? 'transparent' : enTransito ? 'var(--accent-soft)' : 'var(--warn-soft)';
+            return (
+              <div key={a.id} style={{
+                padding: '10px 14px',
+                borderBottom: '1px solid var(--line)',
+                borderLeft: `3px solid ${borderColor}`,
+                background: bgColor,
+              }} title={enTransito ? 'En tránsito · banco aún no lo ve. No requiere acción · explica la diferencia de saldos.' : ''}>
+                <div className="hstack between" style={{ marginBottom: 2 }}>
+                  <span className="mono text-xs" style={{ fontWeight: 700 }}>{a.id}</span>
+                  <span className="mono text-xs muted">{a.fecha.slice(5)}</span>
+                </div>
+                <div style={{ fontSize: 12, fontWeight: 500 }}>{a.glosa}</div>
+                <div className="hstack between" style={{ marginTop: 4 }}>
+                  <span className="mono text-xs muted">{a.docOrigen}</span>
+                  <span className="mono" style={{ fontSize: 12, fontWeight: 700, color: a.monto > 0 ? 'var(--ok)' : 'var(--danger)' }}>
+                    {a.monto > 0 ? '+' : ''}{fmtPEN(a.monto)}
+                  </span>
+                </div>
+                {!matched && enTransito && (
+                  <div className="chip blue" style={{ fontSize: 9, marginTop: 4 }} title="Cheque girado no cobrado o pago en horario nocturno · no requiere asiento nuevo">
+                    ⏳ En tránsito · explica diferencia
+                  </div>
+                )}
+                {!matched && !enTransito && (
+                  <div className="chip amber" style={{ fontSize: 9, marginTop: 4 }}>Pendiente match</div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Centro · flecha drag hint */}
+      <div style={{ background: 'var(--bg-sunken)', borderLeft: '1px solid var(--line)', borderRight: '1px solid var(--line)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '8px 4px', gap: 6 }}>
+        <div style={{ fontSize: 10, fontFamily: 'var(--mono)', color: 'var(--ink-3)', textTransform: 'uppercase' }}>match</div>
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" style={{ opacity: 0.4 }}>
+          <path d="M14 6 L18 10 L14 14" stroke="currentColor" strokeWidth="1.5" fill="none"/>
+          <path d="M6 14 L2 10 L6 6" stroke="currentColor" strokeWidth="1.5" fill="none"/>
+          <path d="M2 10 H18" stroke="currentColor" strokeWidth="1.5" strokeDasharray="2 2"/>
+        </svg>
+        <div style={{ fontSize: 8, color: 'var(--ink-4)', textAlign: 'center', lineHeight: 1.2 }}>arrastra →<br/>crea asiento</div>
+      </div>
+
+      {/* Columna derecha · Estado de cuenta (draggable) */}
+      <div>
+        <div style={{ padding: '8px 14px', background: 'var(--bg-sunken)', borderBottom: '1px solid var(--line)', fontSize: 10, fontFamily: 'var(--mono)', textTransform: 'uppercase', fontWeight: 700, color: 'var(--ink-3)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <span>Estado de cuenta {cartola.banco} ({cartola.movimientos.length})</span>
+          <span style={{ fontSize: 9, color: 'var(--accent)', fontWeight: 600 }}>arrastra ⇒</span>
+        </div>
+        <div style={{ maxHeight, overflowY: 'auto' }}>
+          {cartola.movimientos.map((mov, i) => {
+            const matched = matching.has(i);
+            const amount = mov.cargo > 0 ? -mov.cargo : mov.abono;
+            const draggable = !matched && !!onCrearAsiento;
+            return (
+              <div key={i}
+                draggable={draggable}
+                onDragStart={(e) => { e.dataTransfer.setData('movIdx', String(i)); setDraggingIdx(i); e.dataTransfer.effectAllowed = 'copy'; }}
+                onDragEnd={() => setDraggingIdx(null)}
+                style={{
+                  padding: '10px 14px',
+                  borderBottom: '1px solid var(--line)',
+                  borderLeft: matched ? '3px solid var(--ok)' : '3px solid var(--danger)',
+                  background: draggingIdx === i ? 'var(--accent-soft)' : matched ? 'transparent' : 'var(--danger-soft)',
+                  cursor: draggable ? 'grab' : 'default',
+                  opacity: draggingIdx === i ? 0.5 : 1,
+                  transition: 'opacity .15s',
+                }}>
+                <div className="hstack between" style={{ marginBottom: 2 }}>
+                  <span className="mono text-xs" style={{ fontWeight: 700 }}>{mov.ref}</span>
+                  <span className="mono text-xs muted">{mov.fecha.slice(5)}</span>
+                </div>
+                <div style={{ fontSize: 12, fontWeight: 500 }}>{mov.descripcion}</div>
+                <div className="hstack between" style={{ marginTop: 4 }}>
+                  <span className="text-xs muted">Saldo: S/ {(mov.saldo ?? 0).toLocaleString('es-PE')}</span>
+                  <span className="mono" style={{ fontSize: 12, fontWeight: 700, color: amount > 0 ? 'var(--ok)' : 'var(--danger)' }}>
+                    {amount > 0 ? '+' : ''}{fmtPEN(amount)}
+                  </span>
+                </div>
+                {!matched && (
+                  <div className="hstack" style={{ gap: 6, marginTop: 4 }}>
+                    <span className="chip red" style={{ fontSize: 9 }}>Sin match</span>
+                    {draggable && <span style={{ fontSize: 9, color: 'var(--ink-4)', fontFamily: 'var(--mono)' }}>✋ arrástrame</span>}
+                    <button
+                      className="tb-btn"
+                      style={{ height: 20, fontSize: 9, padding: '0 8px', cursor: onCrearAsiento ? 'pointer' : 'not-allowed', opacity: onCrearAsiento ? 1 : 0.5, marginLeft: 'auto' }}
+                      disabled={!onCrearAsiento}
+                      onClick={(e) => { e.stopPropagation(); onCrearAsiento && onCrearAsiento(mov); }}
+                      title="Genera asiento ERP sincronizado con este movimiento"
+                    >
+                      {Icon.plus({ size: 10 })} Crear asiento
+                    </button>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function CtbMetodoAritmetico({ cartola, asientosBancarios, matching, saldoLibro, onCrearAsiento }) {
+  const asientosMatched = new Set(matching.values());
+  const soloEnBanco = cartola.movimientos.filter((_, i) => !matching.has(i));
+  const soloEnLibro = asientosBancarios.filter(a => !asientosMatched.has(a.id));
+
+  const cargosBanco = soloEnBanco.filter(m => m.cargo > 0);
+  const abonosBanco = soloEnBanco.filter(m => m.abono > 0);
+  const debitosLibro = soloEnLibro.filter(a => a.monto > 0); // entraron al libro, banco no las ve
+  const creditosLibro = soloEnLibro.filter(a => a.monto < 0); // salieron del libro, banco no las ve
+
+  const sumCargo = cargosBanco.reduce((s, m) => s + m.cargo, 0);
+  const sumAbono = abonosBanco.reduce((s, m) => s + m.abono, 0);
+  const sumDeb = debitosLibro.reduce((s, a) => s + a.monto, 0);
+  const sumCred = creditosLibro.reduce((s, a) => s + Math.abs(a.monto), 0);
+
+  const saldoCalculado = saldoLibro - sumCargo + sumAbono - sumDeb + sumCred;
+  const cuadra = Math.abs(saldoCalculado - cartola.saldoFinal) < 1;
+
+  const Row = ({ lbl, movs, op, total, color }) => (
+    <div style={{ padding: '10px 14px', borderBottom: '1px solid var(--line)' }}>
+      <div className="hstack between" style={{ marginBottom: movs.length ? 6 : 0 }}>
+        <span style={{ fontSize: 12, fontWeight: 600 }}>{lbl}</span>
+        <span className="mono" style={{ fontSize: 13, fontWeight: 700, color }}>{op} {fmtPEN(total)}</span>
+      </div>
+      {movs.length > 0 && (
+        <div style={{ paddingLeft: 14, borderLeft: '2px solid var(--line)', marginTop: 4 }}>
+          {movs.map((m, i) => (
+            <div key={i} className="hstack between" style={{ padding: '2px 0', fontSize: 11 }}>
+              <span style={{ color: 'var(--ink-3)' }}>
+                • {m.descripcion || m.glosa} {m.ref ? <span className="mono text-xs muted">· {m.ref}</span> : ''}
+              </span>
+              <span className="mono" style={{ fontSize: 11 }}>{fmtPEN(m.cargo || m.abono || Math.abs(m.monto))}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+
+  return (
+    <div className="card-b" style={{ padding: 0 }}>
+      <div style={{ padding: '14px 16px', background: 'var(--bg-sunken)', borderBottom: '1px solid var(--line)' }}>
+        <div className="hstack between">
+          <div>
+            <div className="mono text-xs muted" style={{ textTransform: 'uppercase', letterSpacing: '0.1em' }}>Método Aritmético</div>
+            <div style={{ fontSize: 12, color: 'var(--ink-2)', marginTop: 2 }}>Arrastra movs del banco a la columna ERP para crear asientos · abajo se recalcula la fórmula</div>
+          </div>
+          <span className="chip blue" style={{ fontSize: 10 }}>Uso pyme / reporte gerencia</span>
+        </div>
+      </div>
+
+      <CtbSideBySide cartola={cartola} asientosBancarios={asientosBancarios} matching={matching} onCrearAsiento={onCrearAsiento} />
+
+      <div style={{ padding: '14px 16px', background: 'var(--accent-soft)', borderBottom: '1px solid var(--line)' }}>
+        <div className="hstack between">
+          <span style={{ fontSize: 13, fontWeight: 700 }}>Saldo final Libro Auxiliar</span>
+          <span className="mono" style={{ fontSize: 16, fontWeight: 700, color: 'var(--accent-ink)' }}>{fmtPEN(saldoLibro)}</span>
+        </div>
+      </div>
+
+      <Row lbl="(−) Cargos en banco NO en libro" movs={cargosBanco} op="−" total={sumCargo} color="var(--danger)" />
+      <Row lbl="(+) Abonos en banco NO en libro" movs={abonosBanco} op="+" total={sumAbono} color="var(--ok)" />
+      <Row lbl="(−) Débitos en libro NO en banco" movs={debitosLibro} op="−" total={sumDeb} color="var(--danger)" />
+      <Row lbl="(+) Créditos en libro NO en banco" movs={creditosLibro} op="+" total={sumCred} color="var(--ok)" />
+
+      <div style={{ padding: '14px 16px', background: cuadra ? 'var(--ok-soft)' : 'var(--danger-soft)', borderTop: '2px solid ' + (cuadra ? 'var(--ok)' : 'var(--danger)') }}>
+        <div className="hstack between" style={{ marginBottom: 6 }}>
+          <span style={{ fontSize: 13, fontWeight: 700 }}>Saldo calculado</span>
+          <span className="mono" style={{ fontSize: 18, fontWeight: 700, color: cuadra ? 'var(--ok)' : 'var(--danger)' }}>
+            {fmtPEN(saldoCalculado)}
+          </span>
+        </div>
+        <div className="hstack between" style={{ marginBottom: 6 }}>
+          <span style={{ fontSize: 12, color: 'var(--ink-2)' }}>Saldo real estado cuenta</span>
+          <span className="mono" style={{ fontSize: 13, fontWeight: 600 }}>{fmtPEN(cartola.saldoFinal)}</span>
+        </div>
+        <div style={{ fontSize: 11, color: cuadra ? 'var(--ok)' : 'var(--danger)', fontWeight: 600 }}>
+          {cuadra ? '✓ Cuadra · Diferencia < S/ 1.00' : `⚠ No cuadra · Diferencia ${fmtPEN(Math.abs(saldoCalculado - cartola.saldoFinal))}`}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════
+// MÉTODO 2 · CONTABLE — secciones formales + asientos sugeridos
+// ═══════════════════════════════════════════════════════════════
+function CtbMetodoContable({ cartola, asientosBancarios, matching, saldoLibro, onCrearAsiento }) {
+  const asientosMatched = new Set(matching.values());
+  const soloEnBanco = cartola.movimientos.filter((_, i) => !matching.has(i));
+  const soloEnLibro = asientosBancarios.filter(a => !asientosMatched.has(a.id));
+
+  // Clasifica cada mov no conciliado
+  const grouped = { notaDebito: [], notaCredito: [], impuesto: [], deposito: [], cheque: [], otro: [] };
+  soloEnBanco.forEach(m => {
+    const c = classifyMov(m);
+    grouped[c.cat].push({ mov: m, cat: c, source: 'banco' });
+  });
+  // Asientos solo en libro que parecen cheques pendientes o pagos nocturnos
+  soloEnLibro.forEach(a => {
+    const isCheque = /CHEQUE|CHQ/i.test(a.glosa);
+    grouped.cheque.push({ mov: { descripcion: a.glosa, ref: a.docOrigen, cargo: Math.abs(a.monto), abono: 0 }, cat: { cat: 'cheque', sub: isCheque ? 'Cheque pendiente de cobro' : 'Pago no reflejado en banco', cuenta: null }, source: 'libro' });
+  });
+
+  const Section = ({ titulo, items, signo, nota, color }) => {
+    if (!items.length) return null;
+    const total = items.reduce((s, it) => s + (it.mov.cargo || it.mov.abono || 0), 0);
+    return (
+      <div style={{ padding: '14px 16px', borderBottom: '1px solid var(--line)' }}>
+        <div className="hstack between" style={{ marginBottom: 8 }}>
+          <div>
+            <div style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>{titulo}</div>
+            {nota && <div style={{ fontSize: 10, color: 'var(--ink-3)', marginTop: 2 }}>{nota}</div>}
+          </div>
+          <span className="mono" style={{ fontSize: 14, fontWeight: 700, color }}>
+            {signo} {fmtPEN(total)}
+          </span>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr auto auto', gap: '4px 12px', fontSize: 11 }}>
+          {items.map((it, i) => (
+            <React.Fragment key={i}>
+              <div style={{ color: 'var(--ink-2)' }}>
+                <span style={{ color: 'var(--ink-4)' }}>•</span> {it.mov.descripcion}
+                {it.mov.ref && <span className="mono text-xs muted" style={{ marginLeft: 6 }}>{it.mov.ref}</span>}
+              </div>
+              <div className="mono" style={{ fontSize: 10, color: 'var(--ink-3)' }}>
+                {it.cat.cuenta ? 'cta ' + it.cat.cuenta : 'sin contab'}
+              </div>
+              <div className="mono" style={{ fontSize: 11, fontWeight: 600, textAlign: 'right' }}>
+                {fmtPEN(it.mov.cargo || it.mov.abono)}
+              </div>
+            </React.Fragment>
+          ))}
+        </div>
+      </div>
+    );
+  };
+
+  // Cálculo saldo final libro tras contabilizar las diferencias
+  const sumaDebitoLibro = [...grouped.deposito, ...grouped.notaCredito].reduce((s, it) => s + (it.mov.abono || 0), 0);
+  const sumaCreditoLibro = [...grouped.notaDebito, ...grouped.impuesto].reduce((s, it) => s + (it.mov.cargo || 0), 0);
+  const saldoLibroAjustado = saldoLibro + sumaDebitoLibro - sumaCreditoLibro;
+  // Cheques pendientes y pagos nocturnos no se contabilizan pero explican la diferencia con saldo banco
+  const diferenciasNoCont = grouped.cheque.reduce((s, it) => s + (it.mov.cargo || 0), 0);
+  const saldoConciliado = saldoLibroAjustado + diferenciasNoCont;
+  const cuadra = Math.abs(saldoConciliado - cartola.saldoFinal) < 1;
+
+  return (
+    <div className="card-b" style={{ padding: 0 }}>
+      <div style={{ padding: '14px 16px', background: 'var(--bg-sunken)', borderBottom: '1px solid var(--line)' }}>
+        <div className="hstack between">
+          <div>
+            <div className="mono text-xs muted" style={{ textTransform: 'uppercase', letterSpacing: '0.1em' }}>Método Contable</div>
+            <div style={{ fontSize: 12, color: 'var(--ink-2)', marginTop: 2 }}>Estándar SUNAT · arrastra los huérfanos del banco a la columna ERP y abajo se actualizan las secciones</div>
+          </div>
+          <span className="chip green" style={{ fontSize: 10 }}>Kelly / auditoría</span>
+        </div>
+      </div>
+
+      <CtbSideBySide cartola={cartola} asientosBancarios={asientosBancarios} matching={matching} onCrearAsiento={onCrearAsiento} />
+
+      <div style={{ padding: '14px 16px', background: 'var(--accent-soft)', borderBottom: '1px solid var(--line)' }}>
+        <div className="hstack between">
+          <span style={{ fontSize: 13, fontWeight: 700 }}>Saldo libro auxiliar (inicial)</span>
+          <span className="mono" style={{ fontSize: 16, fontWeight: 700 }}>{fmtPEN(saldoLibro)}</span>
+        </div>
+      </div>
+
+      <Section titulo="Notas débito no contabilizadas" nota="Cobros del banco → gasto para la empresa"
+        items={grouped.notaDebito} signo="−" color="var(--danger)" />
+      <Section titulo="Impuestos no contabilizados" nota="ITF / GMF / IVA cobrados por el banco"
+        items={grouped.impuesto} signo="−" color="var(--danger)" />
+      <Section titulo="Notas crédito no contabilizadas" nota="Abonos del banco → ingreso para la empresa"
+        items={grouped.notaCredito} signo="+" color="var(--ok)" />
+      <Section titulo="Depósitos en tránsito" nota="Cobros de clientes ya en banco, no contabilizados"
+        items={grouped.deposito} signo="+" color="var(--ok)" />
+      <Section titulo="Cheques pendientes / pagos nocturnos" nota="No se contabilizan · solo se identifican como soporte"
+        items={grouped.cheque} signo="○" color="var(--warn-ink)" />
+      <Section titulo="Otros movimientos" items={grouped.otro} signo="±" color="var(--ink-3)" />
+
+      <div style={{ padding: '14px 16px', background: 'var(--bg-sunken)', borderBottom: '1px solid var(--line)' }}>
+        <div className="hstack between" style={{ marginBottom: 4 }}>
+          <span style={{ fontSize: 12, color: 'var(--ink-2)' }}>Saldo libro tras contabilizar ajustes</span>
+          <span className="mono" style={{ fontSize: 14, fontWeight: 600 }}>{fmtPEN(saldoLibroAjustado)}</span>
+        </div>
+        <div className="hstack between" style={{ marginBottom: 4 }}>
+          <span style={{ fontSize: 12, color: 'var(--ink-2)' }}>(+) Diferencias identificadas no contab.</span>
+          <span className="mono" style={{ fontSize: 13 }}>{fmtPEN(diferenciasNoCont)}</span>
+        </div>
+      </div>
+
+      <div style={{ padding: '14px 16px', background: cuadra ? 'var(--ok-soft)' : 'var(--warn-soft)', borderTop: '2px solid ' + (cuadra ? 'var(--ok)' : 'var(--warn)') }}>
+        <div className="hstack between" style={{ marginBottom: 6 }}>
+          <span style={{ fontSize: 13, fontWeight: 700 }}>Saldo conciliado</span>
+          <span className="mono" style={{ fontSize: 18, fontWeight: 700, color: cuadra ? 'var(--ok)' : 'var(--warn-ink)' }}>
+            {fmtPEN(saldoConciliado)}
+          </span>
+        </div>
+        <div className="hstack between" style={{ marginBottom: 6 }}>
+          <span style={{ fontSize: 12, color: 'var(--ink-2)' }}>Saldo estado cuenta</span>
+          <span className="mono" style={{ fontSize: 13, fontWeight: 600 }}>{fmtPEN(cartola.saldoFinal)}</span>
+        </div>
+        <div style={{ fontSize: 11, color: cuadra ? 'var(--ok)' : 'var(--warn-ink)', fontWeight: 600 }}>
+          {cuadra ? '✓ Conciliación exitosa · soporte listo para auditoría' : `⚠ Diferencia residual ${fmtPEN(Math.abs(saldoConciliado - cartola.saldoFinal))} · revisar cheques pendientes o depósitos en tránsito no identificados`}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════
+// MÉTODO 4 · CUATRO COLUMNAS — saldos ajustados (SAP / Oracle style)
+// ═══════════════════════════════════════════════════════════════
+function CtbMetodoCuatroCol({ cartola, asientosBancarios, matching, saldoLibro, onCrearAsiento }) {
+  const asientosMatched = new Set(matching.values());
+  const soloEnBanco = cartola.movimientos.filter((_, i) => !matching.has(i));
+  const soloEnLibro = asientosBancarios.filter(a => !asientosMatched.has(a.id));
+
+  // Cada ajuste afecta: libro (+/-), banco (+/-) y su signo en débito/crédito
+  // Ajustes que modifican LIBRO:
+  const ajustesLibro = [];
+  soloEnBanco.forEach(m => {
+    const c = classifyMov(m);
+    if (c.cat === 'cheque') return;
+    if (m.cargo > 0) ajustesLibro.push({ glosa: m.descripcion, ref: m.ref, lado: 'libro', debito: 0, credito: m.cargo, cat: c.sub });
+    if (m.abono > 0) ajustesLibro.push({ glosa: m.descripcion, ref: m.ref, lado: 'libro', debito: m.abono, credito: 0, cat: c.sub });
+  });
+  // Ajustes que modifican BANCO (conocidos como "cheques pendientes + pagos nocturnos")
+  const ajustesBanco = [];
+  soloEnLibro.forEach(a => {
+    ajustesBanco.push({
+      glosa: a.glosa, ref: a.docOrigen, lado: 'banco',
+      debito: a.monto < 0 ? Math.abs(a.monto) : 0,
+      credito: a.monto > 0 ? a.monto : 0,
+      cat: a.monto < 0 ? 'Cheque pendiente (banco −)' : 'Depósito pendiente (banco +)',
+    });
+  });
+  soloEnBanco.filter(m => classifyMov(m).cat === 'cheque').forEach(m => {
+    ajustesBanco.push({ glosa: m.descripcion, ref: m.ref, lado: 'banco', debito: m.cargo || 0, credito: m.abono || 0, cat: 'Cheque banco' });
+  });
+
+  const totDebLibro = ajustesLibro.reduce((s, a) => s + a.debito, 0);
+  const totCredLibro = ajustesLibro.reduce((s, a) => s + a.credito, 0);
+  const totDebBanco = ajustesBanco.reduce((s, a) => s + a.debito, 0);
+  const totCredBanco = ajustesBanco.reduce((s, a) => s + a.credito, 0);
+
+  const saldoLibroFinal = saldoLibro + totDebLibro - totCredLibro;
+  const saldoBancoFinal = cartola.saldoFinal + totDebBanco - totCredBanco;
+  const cuadra = Math.abs(saldoLibroFinal - saldoBancoFinal) < 1;
+
+  const Cell = ({ v, color }) => (
+    <td style={{ padding: '6px 10px', textAlign: 'right', fontFamily: 'var(--mono)', fontSize: 11, color: color || 'var(--ink)' }}>
+      {v > 0 ? fmtPEN(v) : v < 0 ? '-' + fmtPEN(Math.abs(v)) : '—'}
+    </td>
+  );
+
+  return (
+    <div className="card-b" style={{ padding: 0 }}>
+      <div style={{ padding: '14px 16px', background: 'var(--bg-sunken)', borderBottom: '1px solid var(--line)' }}>
+        <div className="hstack between">
+          <div>
+            <div className="mono text-xs muted" style={{ textTransform: 'uppercase', letterSpacing: '0.1em' }}>Método Cuatro Columnas</div>
+            <div style={{ fontSize: 12, color: 'var(--ink-2)', marginTop: 2 }}>SAP / Oracle style · arrastra huérfanos para generar asientos y la tabla de abajo se recalcula</div>
+          </div>
+          <span className="chip amber" style={{ fontSize: 10 }}>Tesorería corporativa</span>
+        </div>
+      </div>
+
+      <CtbSideBySide cartola={cartola} asientosBancarios={asientosBancarios} matching={matching} onCrearAsiento={onCrearAsiento} />
+
+      <div style={{ overflowX: 'auto' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+          <thead>
+            <tr style={{ background: 'var(--bg-sunken)', borderBottom: '2px solid var(--line)' }}>
+              <th style={{ padding: '10px 12px', textAlign: 'left', fontSize: 10, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ink-3)' }}>Concepto</th>
+              <th style={{ padding: '10px 12px', textAlign: 'right', fontSize: 10, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ink-3)' }}>S. Libro</th>
+              <th style={{ padding: '10px 12px', textAlign: 'right', fontSize: 10, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ink-3)' }}>S. Banco</th>
+              <th style={{ padding: '10px 12px', textAlign: 'right', fontSize: 10, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ok)' }}>Débito</th>
+              <th style={{ padding: '10px 12px', textAlign: 'right', fontSize: 10, fontWeight: 700, textTransform: 'uppercase', color: 'var(--danger)' }}>Crédito</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr style={{ background: 'var(--accent-soft)', borderBottom: '1px solid var(--line)', fontWeight: 700 }}>
+              <td style={{ padding: '8px 12px', fontSize: 12, fontWeight: 700 }}>Saldo inicial</td>
+              <Cell v={saldoLibro} />
+              <Cell v={cartola.saldoFinal} />
+              <Cell v={0} />
+              <Cell v={0} />
+            </tr>
+            {ajustesLibro.length > 0 && (
+              <tr><td colSpan={5} style={{ padding: '6px 12px', background: 'var(--bg-sunken)', fontSize: 10, fontWeight: 700, color: 'var(--ink-3)', textTransform: 'uppercase' }}>Ajustes al libro auxiliar</td></tr>
+            )}
+            {ajustesLibro.map((a, i) => (
+              <tr key={'l' + i} style={{ borderBottom: '1px solid var(--line)' }}>
+                <td style={{ padding: '5px 12px', fontSize: 11 }}>
+                  {a.glosa}
+                  <div style={{ fontSize: 9, color: 'var(--ink-4)', fontFamily: 'var(--mono)' }}>{a.cat} {a.ref && '· ' + a.ref}</div>
+                </td>
+                <td style={{ padding: '5px 12px', textAlign: 'right', fontSize: 10, color: 'var(--ink-4)' }}>libro</td>
+                <td></td>
+                <Cell v={a.debito} color="var(--ok)" />
+                <Cell v={a.credito} color="var(--danger)" />
+              </tr>
+            ))}
+            {ajustesBanco.length > 0 && (
+              <tr><td colSpan={5} style={{ padding: '6px 12px', background: 'var(--bg-sunken)', fontSize: 10, fontWeight: 700, color: 'var(--ink-3)', textTransform: 'uppercase' }}>Ajustes al estado cuenta banco</td></tr>
+            )}
+            {ajustesBanco.map((a, i) => (
+              <tr key={'b' + i} style={{ borderBottom: '1px solid var(--line)' }}>
+                <td style={{ padding: '5px 12px', fontSize: 11 }}>
+                  {a.glosa}
+                  <div style={{ fontSize: 9, color: 'var(--ink-4)', fontFamily: 'var(--mono)' }}>{a.cat} {a.ref && '· ' + a.ref}</div>
+                </td>
+                <td></td>
+                <td style={{ padding: '5px 12px', textAlign: 'right', fontSize: 10, color: 'var(--ink-4)' }}>banco</td>
+                <Cell v={a.debito} color="var(--ok)" />
+                <Cell v={a.credito} color="var(--danger)" />
+              </tr>
+            ))}
+            <tr style={{ background: 'var(--bg-sunken)', borderTop: '2px solid var(--line)', borderBottom: '1px solid var(--line)', fontWeight: 700 }}>
+              <td style={{ padding: '8px 12px', fontSize: 11, fontWeight: 700 }}>Subtotal ajustes</td>
+              <td></td>
+              <td></td>
+              <Cell v={totDebLibro + totDebBanco} color="var(--ok)" />
+              <Cell v={totCredLibro + totCredBanco} color="var(--danger)" />
+            </tr>
+            <tr style={{ background: cuadra ? 'var(--ok-soft)' : 'var(--warn-soft)', borderTop: '2px solid ' + (cuadra ? 'var(--ok)' : 'var(--warn)') }}>
+              <td style={{ padding: '10px 12px', fontSize: 13, fontWeight: 700 }}>Saldo conciliado / ajustado</td>
+              <Cell v={saldoLibroFinal} />
+              <Cell v={saldoBancoFinal} />
+              <td colSpan={2} style={{ padding: '10px 12px', textAlign: 'right', fontSize: 11, fontWeight: 700, color: cuadra ? 'var(--ok)' : 'var(--warn-ink)' }}>
+                {cuadra ? '✓ Convergencia OK' : '⚠ Δ ' + fmtPEN(Math.abs(saldoLibroFinal - saldoBancoFinal))}
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════
+// MÉTODO 7 · OPEN BANKING / CONCILIACIÓN CONTINUA (mock)
+// ═══════════════════════════════════════════════════════════════
+function CtbOpenBanking({ cartola }) {
+  const conectores = [
+    { banco: 'BCP', status: 'conectado', ultimoSync: 'hace 12s', movsHoy: 14, color: 'var(--ok)', api: 'https://api.bcp.com.pe/openbank/v1/accounts (mock)' },
+    { banco: 'BBVA', status: 'conectado', ultimoSync: 'hace 34s', movsHoy: 6, color: 'var(--ok)', api: 'https://connect.bbva.pe/psd2/accounts (mock)' },
+    { banco: 'Interbank', status: 'pendiente_convenio', ultimoSync: '—', movsHoy: 0, color: 'var(--warn)', api: 'pendiente firma convenio bilateral' },
+    { banco: 'Scotiabank', status: 'desconectado', ultimoSync: '—', movsHoy: 0, color: 'var(--danger)', api: 'no disponible · revisar credenciales OAuth2' },
+  ];
+
+  const now = new Date();
+  const liveMovs = [
+    { ts: new Date(now - 45 * 1000), banco: 'BCP', glosa: 'TRF RECEP RANSA COMERCIAL', monto: 48200, tipo: 'abono' },
+    { ts: new Date(now - 2 * 60 * 1000), banco: 'BBVA', glosa: 'COMISION TRF INTERBANCARIA', monto: 8.50, tipo: 'cargo' },
+    { ts: new Date(now - 4 * 60 * 1000), banco: 'BCP', glosa: 'PAGO YAPE a 194772', monto: 12.00, tipo: 'cargo' },
+    { ts: new Date(now - 7 * 60 * 1000), banco: 'BCP', glosa: 'DEPOSITO BELCORP SA', monto: 124000, tipo: 'abono' },
+    { ts: new Date(now - 15 * 60 * 1000), banco: 'BBVA', glosa: 'MANT CTA CTE MES', monto: 18.00, tipo: 'cargo' },
+  ];
+
+  const fmtTime = (d) => {
+    const s = Math.floor((now - d) / 1000);
+    if (s < 60) return `hace ${s}s`;
+    const m = Math.floor(s / 60);
+    return `hace ${m}min`;
+  };
+
+  return (
+    <div className="card-b" style={{ padding: 0 }}>
+      <div style={{ padding: '14px 16px', background: 'var(--bg-sunken)', borderBottom: '1px solid var(--line)' }}>
+        <div className="hstack between">
+          <div>
+            <div className="hstack" style={{ gap: 6 }}>
+              <div className="mono text-xs muted" style={{ textTransform: 'uppercase', letterSpacing: '0.1em' }}>Conciliación Continua</div>
+              <span className="chip red" style={{ fontSize: 9 }}>BETA · MOCK</span>
+            </div>
+            <div style={{ fontSize: 12, color: 'var(--ink-2)', marginTop: 2 }}>Conectores bancarios vía Open Banking · PSD2 / API directa</div>
+          </div>
+          <div className="hstack" style={{ gap: 4 }}>
+            <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--ok)', animation: 'pulse 2s ease-in-out infinite' }} />
+            <span className="mono text-xs" style={{ color: 'var(--ok)', fontWeight: 600 }}>2 / 4 conectados</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Warning producción */}
+      <div style={{ padding: '12px 16px', background: 'var(--warn-soft)', borderBottom: '1px solid var(--warn)', fontSize: 11, color: 'var(--warn-ink)', lineHeight: 1.5 }}>
+        <div style={{ fontWeight: 700, marginBottom: 4 }}>⚠ Funcionalidad en prototipo · no operativa en producción</div>
+        En producción requiere: (1) convenio bilateral con cada banco · (2) implementación <b>API PSD2 Perú</b> (reglamentación SBS proyectada <span className="mono">2026-2027</span>) · (3) certificación eIDAS / firma digital RENIEC para OAuth2 bancario · (4) endpoint backend intermediario (no se puede llamar APIs bancarias directo desde browser por CORS + seguridad). Los datos mostrados son mock local.
+      </div>
+
+      {/* Grid conectores */}
+      <div style={{ padding: 16, display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 10, borderBottom: '1px solid var(--line)' }}>
+        {conectores.map(c => (
+          <div key={c.banco} style={{ padding: 12, background: 'var(--bg-elev)', border: '1px solid var(--line)', borderRadius: 8, borderLeft: `3px solid ${c.color}` }}>
+            <div className="hstack between" style={{ marginBottom: 6 }}>
+              <span style={{ fontSize: 13, fontWeight: 700 }}>{c.banco}</span>
+              <span className="hstack" style={{ gap: 4 }}>
+                <span style={{ width: 6, height: 6, borderRadius: '50%', background: c.color }} />
+                <span className="mono" style={{ fontSize: 9, textTransform: 'uppercase', color: c.color, fontWeight: 700 }}>
+                  {c.status === 'conectado' ? 'conectado' : c.status === 'pendiente_convenio' ? 'pendiente' : 'off'}
+                </span>
+              </span>
+            </div>
+            <div style={{ fontSize: 10, color: 'var(--ink-3)', fontFamily: 'var(--mono)', marginBottom: 6 }}>
+              sync: {c.ultimoSync}
+            </div>
+            <div className="hstack between" style={{ marginBottom: 8 }}>
+              <span style={{ fontSize: 10, color: 'var(--ink-3)' }}>movs hoy</span>
+              <span className="mono" style={{ fontSize: 13, fontWeight: 700 }}>{c.movsHoy}</span>
+            </div>
+            <div style={{ fontSize: 9, color: 'var(--ink-4)', fontFamily: 'var(--mono)', wordBreak: 'break-all', lineHeight: 1.4 }}>
+              {c.api}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Live feed */}
+      <div style={{ padding: '14px 16px', borderBottom: '1px solid var(--line)' }}>
+        <div className="hstack between" style={{ marginBottom: 10 }}>
+          <div style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Feed tiempo real</div>
+          <span className="chip green" style={{ fontSize: 9 }}>● LIVE</span>
+        </div>
+        <div className="vstack" style={{ gap: 6 }}>
+          {liveMovs.map((m, i) => {
+            const cat = classifyMov(m);
+            return (
+              <div key={i} style={{
+                padding: '10px 12px', background: 'var(--bg-sunken)', borderRadius: 6,
+                borderLeft: `3px solid ${m.tipo === 'abono' ? 'var(--ok)' : 'var(--danger)'}`,
+                display: 'grid', gridTemplateColumns: 'auto 1fr auto auto', gap: 10, alignItems: 'center',
+              }}>
+                <span className="mono text-xs muted" style={{ minWidth: 70 }}>{fmtTime(m.ts)}</span>
+                <div>
+                  <div style={{ fontSize: 11, fontWeight: 600 }}>{m.glosa}</div>
+                  <div className="mono text-xs muted">{m.banco} · cat: <span style={{ color: 'var(--accent)' }}>{cat.sub}</span> · sugiere cta {cat.cuenta || '—'}</div>
+                </div>
+                <span className="chip blue" style={{ fontSize: 9 }}>auto-match intentando</span>
+                <span className="mono" style={{ fontSize: 12, fontWeight: 700, color: m.tipo === 'abono' ? 'var(--ok)' : 'var(--danger)' }}>
+                  {m.tipo === 'abono' ? '+' : '−'}{fmtPEN(m.monto)}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Roadmap */}
+      <div style={{ padding: '14px 16px', background: 'var(--bg-sunken)' }}>
+        <div style={{ fontSize: 11, fontWeight: 700, marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--ink-3)' }}>Roadmap producción</div>
+        <div style={{ fontSize: 11, color: 'var(--ink-2)', lineHeight: 1.7 }}>
+          <div><span className="mono">Q3 2026</span> · Backend intermediario Node/Supabase con job cron de sync bancario cada 5min</div>
+          <div><span className="mono">Q4 2026</span> · Convenio API BCP (empresas corporativas, archivo MT940 diario)</div>
+          <div><span className="mono">Q1 2027</span> · Convenio API BBVA + Interbank (PSD2 peruana si sale)</div>
+          <div><span className="mono">Q2 2027</span> · ML matching (aprende patrones históricos de glosas → cuentas PCGE)</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════
+// CONCILIACIÓN — selector de método + body
 // ═══════════════════════════════════════════════════════════════
 function CtbConciliacionPanel({ cartola, isReal, extraAsientos, onCrearAsiento }) {
   const cuentaPCGE = BANK_TO_PCGE[cartola.cuentaId];
+  const [metodo, setMetodo] = useState('rules'); // rules | aritmetico | contable | columnas | continuo
 
   // Base: si hay extraAsientos (PDF real cargado) → usa esos. Sino, los globales.
   const asientosBase = extraAsientos && extraAsientos.length > 0 ? extraAsientos : asientosContables;
@@ -947,6 +1700,18 @@ function CtbConciliacionPanel({ cartola, isReal, extraAsientos, onCrearAsiento }
   const asientosMatched = new Set(matching.values());
   const soloErp = asientosBancarios.filter(a => !asientosMatched.has(a.id)).length;
 
+  // Saldo libro al corte: saldoCuenta del PCGE hasta fechaHasta
+  const saldoLibro = useMemo(() => saldoCuenta(cuentaPCGE, asientosBase, cartola.fechaHasta), [cuentaPCGE, asientosBase, cartola.fechaHasta]);
+
+  // Selector de método
+  const metodos = [
+    { id: 'rules', lbl: 'Matching IA', sub: 'Rule-based (activo)', icon: 'sparkle' },
+    { id: 'aritmetico', lbl: 'Aritmético', sub: 'Método 1', icon: 'compare' },
+    { id: 'contable', lbl: 'Contable', sub: 'Método 2 · SUNAT', icon: 'book' },
+    { id: 'columnas', lbl: '4 Columnas', sub: 'Método 4 · ERP style', icon: 'grip' },
+    { id: 'continuo', lbl: 'Continuo', sub: 'Método 7 · Beta', icon: 'cloud' },
+  ];
+
   return (
     <div className="vstack" style={{ gap: 14 }}>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10 }}>
@@ -957,7 +1722,7 @@ function CtbConciliacionPanel({ cartola, isReal, extraAsientos, onCrearAsiento }
       </div>
 
       <div className="card">
-        <div className="card-h">
+        <div className="card-h" style={{ flexWrap: 'wrap', gap: 10 }}>
           <div>
             <h3>
               Conciliación · {cartola.banco} {cartola.periodo}
@@ -972,6 +1737,36 @@ function CtbConciliacionPanel({ cartola, isReal, extraAsientos, onCrearAsiento }
             <button className="tb-btn primary" style={{ height: 28, fontSize: 11 }}>{Icon.check({ size: 11 })}Confirmar conciliación</button>
           </div>
         </div>
+
+        {/* Selector de método · tab bar */}
+        <div style={{ display: 'flex', gap: 2, borderBottom: '1px solid var(--line)', overflowX: 'auto' }}>
+          {metodos.map(m => (
+            <button key={m.id} onClick={() => setMetodo(m.id)}
+              style={{
+                padding: '10px 14px', fontSize: 12, fontWeight: 500,
+                background: metodo === m.id ? 'var(--bg-elev)' : 'transparent',
+                border: 'none',
+                borderBottom: '2px solid ' + (metodo === m.id ? 'var(--accent)' : 'transparent'),
+                color: metodo === m.id ? 'var(--ink)' : 'var(--ink-3)',
+                cursor: 'pointer',
+                display: 'flex', alignItems: 'center', gap: 8,
+                whiteSpace: 'nowrap',
+              }}>
+              <span style={{ opacity: 0.8 }}>{Icon[m.icon]({ size: 13 })}</span>
+              <div style={{ textAlign: 'left', lineHeight: 1.2 }}>
+                <div style={{ fontWeight: 600 }}>{m.lbl}</div>
+                <div className="mono text-xs muted" style={{ fontSize: 9 }}>{m.sub}</div>
+              </div>
+            </button>
+          ))}
+        </div>
+
+        {metodo === 'aritmetico' && <CtbMetodoAritmetico cartola={cartola} asientosBancarios={asientosBancarios} matching={matching} saldoLibro={saldoLibro} onCrearAsiento={onCrearAsiento} />}
+        {metodo === 'contable' && <CtbMetodoContable cartola={cartola} asientosBancarios={asientosBancarios} matching={matching} saldoLibro={saldoLibro} onCrearAsiento={onCrearAsiento} />}
+        {metodo === 'columnas' && <CtbMetodoCuatroCol cartola={cartola} asientosBancarios={asientosBancarios} matching={matching} saldoLibro={saldoLibro} onCrearAsiento={onCrearAsiento} />}
+        {metodo === 'continuo' && <CtbOpenBanking cartola={cartola} />}
+
+        {metodo === 'rules' && (
         <div className="card-b" style={{ padding: 0, display: 'grid', gridTemplateColumns: '1fr 40px 1fr', gap: 0 }}>
           {/* Columna izquierda: ERP */}
           <div>
@@ -1058,6 +1853,7 @@ function CtbConciliacionPanel({ cartola, isReal, extraAsientos, onCrearAsiento }
             </div>
           </div>
         </div>
+        )}
       </div>
     </div>
   );

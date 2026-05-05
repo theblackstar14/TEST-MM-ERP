@@ -164,6 +164,49 @@ window.ERP_DATA = (() => {
       deviation: 0,
       risk: 'medium',
     },
+    (() => {
+      // Cálculo contrato derivado del XML
+      // XML cost (con IGV) → CD sin IGV → + GG + Util → + IGV → contrato
+      const cdConIGV = 1253165.90;
+      const igvEnXml = true;
+      const pctGG = 0.10;
+      const pctUtilidad = 0.10;
+      const cdSinIGV = igvEnXml ? cdConIGV / 1.18 : cdConIGV;
+      const subtotal = cdSinIGV * (1 + pctGG + pctUtilidad);
+      const igvCalc = subtotal * 0.18;
+      const montoContrato = subtotal + igvCalc;
+      return {
+        id: 'OB-2026-009',
+        name: 'Construcción nicho, columbario y crematorio — Cementerio Municipal',
+        client: 'Municipalidad Distrital de Lurín',
+        status: 'En ejecución',
+        // Estructura contractual peruana
+        costoDirecto: cdConIGV,         // del XML (asumido con IGV)
+        costoDirectoSinIGV: cdSinIGV,
+        igvEnXml,
+        pctGG,
+        pctUtilidad,
+        montoSubtotal: subtotal,
+        montoIGV: igvCalc,
+        budget: Math.round(montoContrato * 100) / 100,  // contrato calculado
+        spent: 0,
+        committed: 0,
+        progressFisico: 0,
+        progressFinanciero: 0,
+        startDate: '2026-03-15',
+        endDate: '2026-12-20',
+        manager: 'Ing. Carlos Ruiz',
+        location: 'Cementerio Municipal · Av. Manuel Valle s/n, Lurín',
+        lat: -12.2734, lng: -76.8635,
+        hitos: 1,
+        hitosTotal: 9,
+        hitosVencidos: 0,
+        deviation: 0,
+        risk: 'medium',
+        ganttFile: 'assets/gantt-crematorio-rev03.xml',
+        tipo: 'Edificación · obra pública',
+      };
+    })(),
   ];
 
   // Partidas (budget lines) — hierarchical. Project OB-2025-021
@@ -704,6 +747,23 @@ window.ERP_DATA = (() => {
     _mkItem('INV-040', 'MM-P-0040', 'Botas punta de acero (lote 12 pares)',           'EPP',                   'Pro Boots','Model S3',        '—',         1080, '2025-03-05', 'Sodimac',              'Operativo',        'UB-024', 'PER-007'),
     _mkItem('INV-041', 'MM-P-0041', 'Guantes de cuero reforzado (lote 24 pares)',     'EPP',                   'Workman',  'WM-G-PRO',        '—',         360,  '2025-03-18', 'Ferretería industrial','Operativo',        'UB-CEN', 'PER-004'),
     _mkItem('INV-042', 'MM-P-0042', 'Gafas seguridad antiempañante (lote 30)',        'EPP',                   '3M',       'Virtua AP',       '—',         280,  '2025-02-28', 'Sodimac',              'Operativo',        'UB-018', 'PER-009'),
+    _mkItem('INV-043', 'MM-P-0043', 'Mascarillas N95 reutilizables (lote 50)',        'EPP',                   '3M',       '8210',            '—',         420,  '2025-04-02', 'Sodimac',              'Operativo',        'UB-CEN', 'PER-004'),
+    _mkItem('INV-044', 'MM-P-0044', 'Chalecos reflectivos clase 2 (lote 15)',         'EPP',                   'Workman',  'CR-V2',           '—',         320,  '2025-03-22', 'Ferretería industrial','Operativo',        'UB-021', 'PER-005'),
+    // Mobiliario oficina
+    _mkItem('INV-045', 'MM-O-0045', 'Escritorio gerencial L 1.60m roble',             'Mobiliario',            'Tugó',     'EJ-1600L',        '—',         1280, '2023-08-15', 'Tugó',                 'Operativo',        'UB-CEN', 'PER-006'),
+    _mkItem('INV-046', 'MM-O-0046', 'Silla ergonómica con respaldo malla (lote 6)',   'Mobiliario',            'Klaussner','EM-Pro',          '—',         3240, '2023-08-15', 'Tugó',                 'Operativo',        'UB-CEN', 'PER-006'),
+    _mkItem('INV-047', 'MM-O-0047', 'Mesa reuniones 8 personas roble',                'Mobiliario',            'Tugó',     'MR-240',          '—',         2180, '2023-08-15', 'Tugó',                 'Operativo',        'UB-CEN', 'PER-001'),
+    _mkItem('INV-048', 'MM-O-0048', 'Archivador metálico 4 cajones',                  'Mobiliario',            'Sodimac',  'AM-4D',           '—',         680,  '2024-02-10', 'Sodimac',              'Operativo',        'UB-CEN', 'PER-006'),
+    _mkItem('INV-049', 'MM-O-0049', 'Estante metálico almacén 5 niveles',             'Mobiliario',            'Sodimac',  'EST-5N-IND',      '—',         480,  '2024-04-18', 'Sodimac',              'Operativo',        'UB-CEN', 'PER-004'),
+    // Cómputo
+    _mkItem('INV-050', 'MM-C-0050', 'Laptop Dell Latitude 5540 i7 16GB',              'Cómputo',               'Dell',     'Latitude 5540',   'DL5540881', 4280, '2024-03-05', 'Dell Perú',            'Operativo',        'UB-CEN', 'PER-001'),
+    _mkItem('INV-051', 'MM-C-0051', 'Laptop HP ProBook 450 G10 i5 16GB',              'Cómputo',               'HP',       'ProBook 450 G10', 'HP450G10X', 3680, '2024-05-12', 'HP Perú',              'Operativo',        'UB-CEN', 'PER-008'),
+    _mkItem('INV-052', 'MM-C-0052', 'Impresora multifuncional Epson L5290',           'Cómputo',               'Epson',    'L5290',           'EPL529012', 1280, '2024-01-25', 'Sodimac',              'Operativo',        'UB-CEN', 'PER-006'),
+    _mkItem('INV-053', 'MM-C-0053', 'Monitor LG UltraWide 29\" para gerencia',         'Cómputo',               'LG',       '29WP500',         'LG295001',  980,  '2024-06-08', 'Hiraoka',              'Operativo',        'UB-CEN', 'PER-001'),
+    _mkItem('INV-054', 'MM-C-0054', 'Plotter HP DesignJet T520 para planos',          'Cómputo',               'HP',       'DesignJet T520',  'HPDJ52001', 3480, '2023-11-15', 'HP Perú',              'Operativo',        'UB-CEN', 'PER-008'),
+    // Medición extra
+    _mkItem('INV-055', 'MM-M-0055', 'GPS Garmin GPSMAP 64sx',                          'Medición',              'Garmin',   'GPSMAP 64sx',     'GR64SX112', 1480, '2024-09-20', 'Topograf SAC',         'Operativo',        'UB-018', 'PER-009'),
+    _mkItem('INV-056', 'MM-M-0056', 'Higrómetro digital Testo 605i',                   'Medición',              'Testo',    '605i',            'TE60511',   480,  '2025-01-08', 'Testo Perú',           'Operativo',        'UB-CEN', 'PER-004'),
   ];
 
   // Movimientos históricos (trazabilidad) — últimos 5 meses
@@ -1231,5 +1291,359 @@ window.ERP_DATA = (() => {
     { id: 'LOG-010', cpeId: null,      fecha: '2026-03-31T23:55:00', accion: 'REPORTE',   codigo: 'PLE-ELE', mensaje: 'Libro electrónico de ventas enviado (marzo 2026)',    nivel: 'info' },
   ];
 
-  return { projects, partidas, bids, gantt, cashflow, sunatConciliaciones, sunatEmitidos, sunatComunicaciones, docsTree, versions, cuentasBancariasBalances, gastosOficina, valorizacionesPipeline, garantias, cashflowForecast, cotizaciones, inventarioItems, inventarioUbicaciones, inventarioPersonal, inventarioMovimientos, inventarioMantenimientos, DEPRECIACION_CATEGORIA, planContable, asientosContables, cartolasBancarias, BANK_TO_PCGE, EMISOR, fmtPEN, fmtInt, fmtPct, fmtCompact };
+  // ═══════════════════════════════════════════════════════════════
+  // PLANILLA · CONSTRUCCIÓN CIVIL
+  // Régimen especial D.S. 011-79-TR · convenio FTCCP-CAPECO
+  // ═══════════════════════════════════════════════════════════════
+
+  // Parámetros vigentes 2025-2026 (convenio FTCCP-CAPECO referencial)
+  const parametrosCC = {
+    vigenciaInicio: '2025-06-01',
+    vigenciaFin: '2026-05-31',
+    jornales: { operario: 86.10, oficial: 71.10, peon: 63.50 },
+    buc: { operario: 0.32, oficial: 0.30, peon: 0.30 },
+    bonificaciones: {
+      altura: 0.05,
+      nocturno: 0.25,
+      agua: 0.20,
+      riesgoTunel: 0.25,
+    },
+    pasajeUrbano: 1.00,
+    pasajesPorDia: 6,
+    asignEscolarJornales: 10,
+    cts: 0.15,
+    horasExtras: { primeras2h: 0.25, adicionales: 0.35 },
+    dominicalRecargo: 1.00,
+    feriadoTrabajadoRecargo: 1.00,
+    aportesEmpleador: {
+      essalud: 0.09,
+      sctrSalud: 0.0155,
+      sctrPension: 0.0174,
+      sencico: 0.002,
+      conafovicer: 0.02,
+    },
+    aportesTrabajador: {
+      onp: 0.13,
+      afpFondo: 0.10,
+      afpComision: 0.0163,
+      afpPrimaSeguro: 0.0149,
+    },
+    uit: 5350,
+    rentaQuintaTramos: [
+      { hasta: 5,  tasa: 0.08 },
+      { hasta: 20, tasa: 0.14 },
+      { hasta: 35, tasa: 0.17 },
+      { hasta: 45, tasa: 0.20 },
+      { hasta: Infinity, tasa: 0.30 },
+    ],
+    edadMinima: 18,
+  };
+
+  const feriadosPeru2026 = [
+    '2026-01-01', '2026-04-02', '2026-04-03', '2026-05-01', '2026-06-29',
+    '2026-07-23', '2026-07-28', '2026-07-29', '2026-08-06', '2026-08-30',
+    '2026-10-08', '2026-11-01', '2026-12-08', '2026-12-09', '2026-12-25',
+  ];
+
+  // Trabajadores construcción civil
+  const _mkTrab = (id, dni, nombre, cat, obraId, fechaIngreso, hijosEsc, regimenPension, telefono, sctrFin) => ({
+    id, dni, nombre,
+    regimen: 'cc',
+    categoria: cat,
+    obraId,
+    fechaIngreso,
+    hijosEdadEscolar: hijosEsc,
+    regimenPensionario: regimenPension,
+    telefono,
+    estado: 'activo',
+    inscritoTRegistro: true,
+    fechaAlta: fechaIngreso,
+    sctrVigenciaFin: sctrFin,
+    examenMedicoVigente: true,
+    bonifAltura: false, bonifAgua: false, bonifNocturno: false,
+    tipoContrato: 'obra_determinada',
+    contratoFechaInicio: fechaIngreso,
+    contratoFechaFin: '2026-12-31',
+  });
+
+  const trabajadores = [
+    _mkTrab('TRA-001', '40456789', 'Raúl Mendoza Vilca',           'operario', 'OB-2025-021', '2025-08-15', 2, 'onp',         '987111001', '2026-12-31'),
+    _mkTrab('TRA-002', '46789012', 'Carlos Huanca Huamán',         'operario', 'OB-2025-021', '2025-08-15', 1, 'afp_integra', '987111002', '2026-12-31'),
+    _mkTrab('TRA-003', '45123456', 'Marcos Quispe Chávez',         'operario', 'OB-2025-018', '2025-09-01', 3, 'onp',         '987111003', '2026-12-31'),
+    _mkTrab('TRA-004', '47654321', 'Pedro Ramos Llanos',           'oficial',  'OB-2025-021', '2025-09-10', 2, 'afp_prima',   '987111004', '2026-12-31'),
+    _mkTrab('TRA-005', '42987654', 'Luis Tafur Rivera',            'oficial',  'OB-2025-018', '2025-10-05', 1, 'onp',         '987111005', '2026-12-31'),
+    _mkTrab('TRA-006', '44567890', 'Hugo Salazar Mamani',          'oficial',  'OB-2025-024', '2025-11-12', 0, 'afp_integra', '987111006', '2026-12-31'),
+    _mkTrab('TRA-007', '46123789', 'Juan Espinoza Cárdenas',       'peon',     'OB-2025-021', '2025-12-01', 4, 'onp',         '987111007', '2026-12-31'),
+    _mkTrab('TRA-008', '45678901', 'Víctor Aguilar Tumi',          'peon',     'OB-2025-021', '2025-12-01', 2, 'onp',         '987111008', '2026-12-31'),
+    _mkTrab('TRA-009', '43210987', 'Roberto Gonzales Apaza',       'peon',     'OB-2025-018', '2026-01-15', 3, 'onp',         '987111009', '2026-12-31'),
+    _mkTrab('TRA-010', '47890123', 'Manuel Ccoyllo Quispe',        'peon',     'OB-2025-018', '2026-02-01', 2, 'afp_profuturo', '987111010', '2026-06-30'),
+    _mkTrab('TRA-011', '46543210', 'Esteban Yauri Pérez',          'oficial',  'OB-2025-024', '2026-02-10', 1, 'onp',         '987111011', '2026-12-31'),
+    _mkTrab('TRA-012', '45987123', 'Daniel Choque Layme',          'peon',     'OB-2025-024', '2026-03-15', 0, 'onp',         '987111012', '2026-12-31'),
+  ];
+
+  // Bonificaciones especiales aplicables (algunos sí, otros no)
+  trabajadores[1].bonifAltura = true;   // Carlos H · trabajos en altura
+  trabajadores[3].bonifAltura = true;   // Pedro R · oficial
+  trabajadores[7].bonifNocturno = true; // Víctor A · turno noche
+
+  // Asistencia mock · 4 semanas pasadas (W14-W17 2026) + semana actual (W17 incompleta)
+  // Estructura: { trabajadorId, fecha, tipo, horasExtras, minutosTardanza }
+  const asistencia = [];
+  const _addAsistSemana = (semIdx, tipos) => {
+    const ref = new Date('2026-04-06'); // Lunes W15
+    const monday = new Date(ref.getTime() + (semIdx - 15) * 7 * 86400000);
+    trabajadores.forEach((t, i) => {
+      const tt = tipos[i] || ['normal','normal','normal','normal','normal','normal'];
+      for (let d = 0; d < 6; d++) {
+        const fecha = new Date(monday.getTime() + d * 86400000).toISOString().slice(0, 10);
+        const tipo = tt[d];
+        if (!tipo) continue;
+        asistencia.push({
+          trabajadorId: t.id,
+          obraId: t.obraId,
+          fecha,
+          tipo,
+          horasExtras25: (tipo === 'normal' && (i === 0 || i === 3) && d >= 4) ? 2 : 0,
+          horasExtras35: 0,
+          minutosTardanza: (tipo === 'tardanza') ? 25 : 0,
+        });
+      }
+    });
+  };
+
+  // Semana 14 (mar 30 - abr 4) · regular
+  _addAsistSemana(14, [
+    ['normal','normal','normal','normal','normal','normal'], // TRA-001
+    ['normal','normal','normal','normal','normal','normal'],
+    ['normal','normal','normal','normal','normal','normal'],
+    ['normal','normal','normal','normal','normal','normal'],
+    ['normal','normal','normal','normal','normal','normal'],
+    ['normal','normal','normal','normal','normal','normal'],
+    ['normal','normal','normal','normal','normal','normal'],
+    ['normal','normal','tardanza','normal','normal','normal'],
+    ['normal','normal','normal','normal','normal','normal'],
+    ['normal','normal','normal','normal','normal','normal'],
+    ['normal','normal','normal','normal','normal','normal'],
+    ['normal','normal','normal','normal','normal','normal'],
+  ]);
+  // Semana 15 (abr 6-11) · con DM y faltas
+  _addAsistSemana(15, [
+    ['normal','normal','normal','normal','normal','normal'],
+    ['normal','normal','descanso_med','descanso_med','descanso_med','normal'],
+    ['normal','normal','normal','falta_inj','normal','normal'],
+    ['normal','normal','normal','normal','normal','normal'],
+    ['normal','normal','normal','normal','normal','normal'],
+    ['normal','tardanza','normal','normal','normal','normal'],
+    ['normal','normal','normal','normal','normal','normal'],
+    ['normal','normal','normal','normal','normal','normal'],
+    ['normal','normal','normal','normal','normal','normal'],
+    ['normal','normal','normal','normal','normal','normal'],
+    ['normal','normal','normal','normal','normal','normal'],
+    ['normal','normal','falta_just','normal','normal','normal'],
+  ]);
+  // Semana 16 (abr 13-18) · regular con horas extras
+  _addAsistSemana(16, [
+    ['normal','normal','normal','normal','normal','normal'],
+    ['normal','normal','normal','normal','normal','normal'],
+    ['normal','normal','normal','normal','normal','normal'],
+    ['normal','normal','normal','normal','normal','normal'],
+    ['normal','normal','normal','normal','normal','normal'],
+    ['normal','normal','normal','normal','normal','normal'],
+    ['normal','normal','normal','normal','normal','normal'],
+    ['normal','normal','normal','normal','normal','normal'],
+    ['normal','normal','normal','normal','normal','normal'],
+    ['normal','normal','normal','normal','normal','normal'],
+    ['normal','normal','normal','normal','normal','normal'],
+    ['normal','normal','normal','normal','normal','normal'],
+  ]);
+  // Semana 17 (abr 20-25) · semana actual · 4 días llenos + jue/vie/sab parcial
+  _addAsistSemana(17, [
+    ['normal','normal','normal','normal',null,null],
+    ['normal','normal','normal','normal',null,null],
+    ['normal','normal','normal','tardanza',null,null],
+    ['normal','normal','normal','normal',null,null],
+    ['normal','normal','normal','normal',null,null],
+    ['normal','normal','normal','normal',null,null],
+    ['normal','normal','normal','normal',null,null],
+    ['normal','normal','normal','normal',null,null],
+    ['normal','falta_inj','normal','normal',null,null],
+    ['normal','normal','normal','normal',null,null],
+    ['normal','normal','normal','normal',null,null],
+    ['normal','normal','normal','normal',null,null],
+  ]);
+
+  // Periodos de planilla generados
+  const periodosPlanilla = [
+    { id: 'PL-2026-W14', semana: 14, fechaInicio: '2026-03-30', fechaFin: '2026-04-04', estado: 'pagado',  asientoId: 'AS-PL-W14', fechaCierre: '2026-04-05' },
+    { id: 'PL-2026-W15', semana: 15, fechaInicio: '2026-04-06', fechaFin: '2026-04-11', estado: 'pagado',  asientoId: 'AS-PL-W15', fechaCierre: '2026-04-12' },
+    { id: 'PL-2026-W16', semana: 16, fechaInicio: '2026-04-13', fechaFin: '2026-04-18', estado: 'cerrado', asientoId: 'AS-PL-W16', fechaCierre: '2026-04-19' },
+    { id: 'PL-2026-W17', semana: 17, fechaInicio: '2026-04-20', fechaFin: '2026-04-25', estado: 'abierto', asientoId: null,        fechaCierre: null },
+  ];
+
+  // Subsidios EsSalud (1 caso activo)
+  const subsidiosPlanilla = [
+    {
+      id: 'SUB-001', trabajadorId: 'TRA-002', tipo: 'enfermedad',
+      fechaInicio: '2026-04-08', fechaFin: '2026-04-10',
+      diasCubiertos: 3, cubrePagador: 'empleador',
+      diagnostico: 'Lumbalgia mecánica · CIE-10 M54.5',
+      certificadoMedico: 'CITT-2026-08841',
+      importeReembolsable: 0,
+      estado: 'tramitado',
+    },
+  ];
+
+  // Liquidaciones históricas (vacío en MVP · se llena al cesar)
+  const liquidacionesPlanilla = [];
+
+  // ═══════ Engine cálculo boleta CC · función pura ═══════
+  function calcularBoletaCC(trabajador, asistenciaSemana, params) {
+    const jornal = params.jornales[trabajador.categoria];
+    const buc = params.buc[trabajador.categoria];
+
+    // Días trabajados (normal + tardanza + feriado_trab cuentan; falta/DM no)
+    const diasNormales = asistenciaSemana.filter(a => a.tipo === 'normal' || a.tipo === 'tardanza').length;
+    const diasFeriadoTrab = asistenciaSemana.filter(a => a.tipo === 'feriado_trab').length;
+    const diasDominical = asistenciaSemana.filter(a => a.tipo === 'dominical').length;
+    const diasDM = asistenciaSemana.filter(a => a.tipo === 'descanso_med').length;
+    const diasFaltaJust = asistenciaSemana.filter(a => a.tipo === 'falta_just').length;
+    const diasFaltaInj = asistenciaSemana.filter(a => a.tipo === 'falta_inj').length;
+
+    const horasExtras25 = asistenciaSemana.reduce((s, a) => s + (a.horasExtras25 || 0), 0);
+    const horasExtras35 = asistenciaSemana.reduce((s, a) => s + (a.horasExtras35 || 0), 0);
+    const minutosTardanza = asistenciaSemana.reduce((s, a) => s + (a.minutosTardanza || 0), 0);
+
+    const diasPagados = diasNormales + diasFeriadoTrab; // CC: domingo se paga descanso si trabajó toda la semana
+
+    // Ingresos
+    const ing = {};
+    ing.jornalBruto = +(jornal * diasPagados).toFixed(2);
+    ing.bucMonto = +(jornal * diasPagados * buc).toFixed(2);
+    ing.dominical = +(jornal * (diasNormales >= 5 ? 1 : 0)).toFixed(2); // descanso domingo si cumplió
+    ing.feriadoTrab = +(jornal * diasFeriadoTrab * (1 + params.feriadoTrabajadoRecargo)).toFixed(2);
+
+    // Asignación escolar (semanal proporcional)
+    const asignAnual = trabajador.hijosEdadEscolar * params.asignEscolarJornales * jornal;
+    ing.asignEscolar = +(asignAnual / 52).toFixed(2);
+
+    // Bonificaciones específicas
+    const jornalDia = jornal * diasPagados;
+    ing.bonifAltura = trabajador.bonifAltura ? +(jornalDia * params.bonificaciones.altura).toFixed(2) : 0;
+    ing.bonifAgua = trabajador.bonifAgua ? +(jornalDia * params.bonificaciones.agua).toFixed(2) : 0;
+    ing.bonifNocturno = trabajador.bonifNocturno ? +(jornalDia * params.bonificaciones.nocturno).toFixed(2) : 0;
+
+    // Movilidad acumulada (solo días asistidos)
+    ing.movilidad = +(diasNormales * params.pasajesPorDia * params.pasajeUrbano).toFixed(2);
+
+    // Horas extras (jornal/8 = hora base)
+    const horaBase = jornal / 8;
+    ing.horasExtras25 = +(horaBase * horasExtras25 * (1 + params.horasExtras.primeras2h)).toFixed(2);
+    ing.horasExtras35 = +(horaBase * horasExtras35 * (1 + params.horasExtras.adicionales)).toFixed(2);
+
+    // CTS construcción civil (15% sobre jornal · pagado en planilla)
+    ing.cts = +(ing.jornalBruto * params.cts).toFixed(2);
+
+    const totalIngresos = Object.values(ing).reduce((s, v) => s + v, 0);
+    const totalIngresosNum = +totalIngresos.toFixed(2);
+
+    // Descuentos al trabajador
+    const desc = {};
+    if (trabajador.regimenPensionario === 'onp') {
+      desc.onp = +(ing.jornalBruto * params.aportesTrabajador.onp).toFixed(2);
+    } else {
+      desc.afpFondo = +(ing.jornalBruto * params.aportesTrabajador.afpFondo).toFixed(2);
+      desc.afpComision = +(ing.jornalBruto * params.aportesTrabajador.afpComision).toFixed(2);
+      desc.afpPrima = +(ing.jornalBruto * params.aportesTrabajador.afpPrimaSeguro).toFixed(2);
+    }
+    // Renta 5ta (anual proyectado / 52)
+    const ingAnualProy = totalIngresosNum * 52;
+    const exenta = 7 * params.uit;
+    let renta5ta = 0;
+    if (ingAnualProy > exenta) {
+      let base = ingAnualProy - exenta;
+      let acumUIT = 0;
+      for (const t of params.rentaQuintaTramos) {
+        const tramoUIT = t.hasta === Infinity ? Infinity : t.hasta - acumUIT;
+        const tramoSoles = tramoUIT === Infinity ? base : tramoUIT * params.uit;
+        if (base <= tramoSoles) { renta5ta += base * t.tasa; break; }
+        renta5ta += tramoSoles * t.tasa;
+        base -= tramoSoles;
+        acumUIT = t.hasta;
+      }
+    }
+    desc.renta5ta = +(renta5ta / 52).toFixed(2);
+    // Descuento por tardanza (proporcional minutos)
+    desc.tardanza = +(horaBase * (minutosTardanza / 60)).toFixed(2);
+    // Descuento por falta injustificada (1 jornal por falta)
+    desc.faltasInj = +(jornal * diasFaltaInj).toFixed(2);
+
+    const totalDescuentos = Object.values(desc).reduce((s, v) => s + v, 0);
+
+    // Aportes empleador (sobre jornalBruto + bonificaciones, exclude movilidad/asignEscolar)
+    const baseAportes = ing.jornalBruto + ing.bucMonto + ing.bonifAltura + ing.bonifAgua + ing.bonifNocturno;
+    const aporte = {};
+    aporte.essalud = +(baseAportes * params.aportesEmpleador.essalud).toFixed(2);
+    aporte.sctrSalud = +(baseAportes * params.aportesEmpleador.sctrSalud).toFixed(2);
+    aporte.sctrPension = +(baseAportes * params.aportesEmpleador.sctrPension).toFixed(2);
+    aporte.sencico = +(baseAportes * params.aportesEmpleador.sencico).toFixed(2);
+    aporte.conafovicer = +(baseAportes * params.aportesEmpleador.conafovicer).toFixed(2);
+    const totalAportes = Object.values(aporte).reduce((s, v) => s + v, 0);
+
+    const neto = +(totalIngresos - totalDescuentos).toFixed(2);
+    const costoTotal = +(totalIngresos + totalAportes).toFixed(2);
+
+    return {
+      trabajadorId: trabajador.id,
+      diasNormales, diasFeriadoTrab, diasDM, diasFaltaJust, diasFaltaInj,
+      horasExtras25, horasExtras35, minutosTardanza,
+      ingresos: ing,
+      descuentos: desc,
+      aportes: aporte,
+      totalIngresos: totalIngresosNum,
+      totalDescuentos: +totalDescuentos.toFixed(2),
+      totalAportes: +totalAportes.toFixed(2),
+      neto,
+      costoTotal,
+    };
+  }
+
+  // Genera asiento contable a partir de boletas calculadas + obra
+  function generarAsientoPlanilla(boletas, periodoId, fecha) {
+    const totalBruto = boletas.reduce((s, b) => s + b.totalIngresos, 0);
+    const totalEssalud = boletas.reduce((s, b) => s + (b.aportes.essalud || 0), 0);
+    const totalSCTRSalud = boletas.reduce((s, b) => s + (b.aportes.sctrSalud || 0), 0);
+    const totalSCTRPension = boletas.reduce((s, b) => s + (b.aportes.sctrPension || 0), 0);
+    const totalSencico = boletas.reduce((s, b) => s + (b.aportes.sencico || 0), 0);
+    const totalConafovicer = boletas.reduce((s, b) => s + (b.aportes.conafovicer || 0), 0);
+    const totalONP = boletas.reduce((s, b) => s + (b.descuentos.onp || 0), 0);
+    const totalAFP = boletas.reduce((s, b) => s + ((b.descuentos.afpFondo || 0) + (b.descuentos.afpComision || 0) + (b.descuentos.afpPrima || 0)), 0);
+    const totalRenta = boletas.reduce((s, b) => s + (b.descuentos.renta5ta || 0), 0);
+    const totalNeto = boletas.reduce((s, b) => s + b.neto, 0);
+
+    const lineas = [
+      { cuenta: '621', debe: +totalBruto.toFixed(2), haber: 0 },
+      { cuenta: '627', debe: +(totalEssalud + totalSCTRSalud + totalSCTRPension + totalSencico + totalConafovicer).toFixed(2), haber: 0 },
+      // Haber
+      { cuenta: '4031', debe: 0, haber: +totalEssalud.toFixed(2) },
+      { cuenta: '4034', debe: 0, haber: +(totalSCTRSalud + totalSCTRPension).toFixed(2) },
+      { cuenta: '4035', debe: 0, haber: +totalSencico.toFixed(2) },
+      { cuenta: '4036', debe: 0, haber: +totalConafovicer.toFixed(2) },
+      { cuenta: '4032', debe: 0, haber: +totalONP.toFixed(2) },
+      { cuenta: '4033', debe: 0, haber: +totalAFP.toFixed(2) },
+      { cuenta: '40173', debe: 0, haber: +totalRenta.toFixed(2) },
+      { cuenta: '4111', debe: 0, haber: +totalNeto.toFixed(2) },
+    ].filter(l => Math.abs(l.debe + l.haber) > 0.01);
+
+    return {
+      id: 'AS-PL-W' + periodoId.split('W')[1],
+      fecha,
+      glosa: 'Provisión planilla CC ' + periodoId,
+      docOrigen: periodoId,
+      revisado: false,
+      lineas,
+      origen: 'planilla',
+    };
+  }
+
+  return { projects, partidas, bids, gantt, cashflow, sunatConciliaciones, sunatEmitidos, sunatComunicaciones, docsTree, versions, cuentasBancariasBalances, gastosOficina, valorizacionesPipeline, garantias, cashflowForecast, cotizaciones, inventarioItems, inventarioUbicaciones, inventarioPersonal, inventarioMovimientos, inventarioMantenimientos, DEPRECIACION_CATEGORIA, planContable, asientosContables, cartolasBancarias, BANK_TO_PCGE, EMISOR, parametrosCC, feriadosPeru2026, trabajadores, asistencia, periodosPlanilla, subsidiosPlanilla, liquidacionesPlanilla, calcularBoletaCC, generarAsientoPlanilla, fmtPEN, fmtInt, fmtPct, fmtCompact };
 })();

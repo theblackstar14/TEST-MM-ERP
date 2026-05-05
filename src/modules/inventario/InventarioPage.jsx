@@ -218,19 +218,32 @@ function InvCatalogoView({ items, onSelect, onTransferir }) {
   }, [items, q, filterCat, filterEst, filterUb]);
 
   const categorias = Object.keys(DEPRECIACION_CATEGORIA);
+  // Counts por categoría para mostrar en los chips (respeta otros filtros pero ignora filterCat)
+  const catCounts = useMemo(() => {
+    const m = { all: 0 };
+    categorias.forEach(c => { m[c] = 0; });
+    items.forEach(it => {
+      if (filterEst !== 'all' && it.estado !== filterEst) return;
+      if (filterUb !== 'all' && it.ubicacionId !== filterUb) return;
+      if (q.trim()) {
+        const ql = q.toLowerCase();
+        const match = it.nombre.toLowerCase().includes(ql) || it.codigo.toLowerCase().includes(ql) || (it.marca || '').toLowerCase().includes(ql);
+        if (!match) return;
+      }
+      m.all += 1;
+      if (m[it.categoria] !== undefined) m[it.categoria] += 1;
+    });
+    return m;
+  }, [items, q, filterEst, filterUb]);
 
   return (
     <div>
       <div className="card" style={{ padding: '10px 14px', marginBottom: 12 }}>
-        <div className="hstack" style={{ gap: 8, flexWrap: 'wrap' }}>
+        <div className="hstack" style={{ gap: 8, flexWrap: 'wrap', marginBottom: 10 }}>
           <div className="tb-search-wrap" style={{ flex: 1, minWidth: 220, maxWidth: 'none' }}>
             <span className="ico">{Icon.search({ size: 13 })}</span>
             <input value={q} onChange={e => setQ(e.target.value)} placeholder="Buscar por nombre, código, marca..." />
           </div>
-          <select value={filterCat} onChange={e => setFilterCat(e.target.value)} className="fin-input" style={{ height: 30, fontSize: 11 }}>
-            <option value="all">Todas categorías</option>
-            {categorias.map(c => <option key={c}>{c}</option>)}
-          </select>
           <select value={filterEst} onChange={e => setFilterEst(e.target.value)} className="fin-input" style={{ height: 30, fontSize: 11 }}>
             <option value="all">Todos estados</option>
             <option>Operativo</option>
@@ -243,6 +256,47 @@ function InvCatalogoView({ items, onSelect, onTransferir }) {
             <option value="all">Todas ubicaciones</option>
             {inventarioUbicaciones.map(u => <option key={u.id} value={u.id}>{u.nombre}</option>)}
           </select>
+        </div>
+
+        {/* Chips por categoría */}
+        <div className="hstack" style={{ gap: 6, flexWrap: 'wrap' }}>
+          <button
+            onClick={() => setFilterCat('all')}
+            style={{
+              padding: '5px 12px', borderRadius: 16, fontSize: 11, fontWeight: 600,
+              border: '1px solid ' + (filterCat === 'all' ? 'var(--ink)' : 'var(--line)'),
+              background: filterCat === 'all' ? 'var(--ink)' : 'var(--bg-elev)',
+              color: filterCat === 'all' ? '#fff' : 'var(--ink-2)',
+              cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6,
+              transition: 'all .12s',
+            }}
+          >
+            Todas <span style={{ opacity: 0.7, fontFamily: 'var(--mono)', fontSize: 10 }}>{catCounts.all}</span>
+          </button>
+          {categorias.map(c => {
+            const active = filterCat === c;
+            const color = categoriaColor(c);
+            const count = catCounts[c] || 0;
+            return (
+              <button
+                key={c}
+                onClick={() => setFilterCat(active ? 'all' : c)}
+                disabled={count === 0 && !active}
+                style={{
+                  padding: '5px 12px', borderRadius: 16, fontSize: 11, fontWeight: 600,
+                  border: '1px solid ' + (active ? color : 'var(--line)'),
+                  background: active ? color : 'var(--bg-elev)',
+                  color: active ? '#fff' : (count === 0 ? 'var(--ink-4)' : 'var(--ink-2)'),
+                  cursor: count === 0 && !active ? 'not-allowed' : 'pointer',
+                  opacity: count === 0 && !active ? 0.45 : 1,
+                  display: 'inline-flex', alignItems: 'center', gap: 6,
+                  transition: 'all .12s',
+                }}
+              >
+                {c} <span style={{ opacity: 0.75, fontFamily: 'var(--mono)', fontSize: 10 }}>{count}</span>
+              </button>
+            );
+          })}
         </div>
       </div>
 
@@ -1215,7 +1269,11 @@ function InvScannerModal({ onClose, onScan, items }) {
 // ═══════════════════════════════════════════════════════════════
 function InvEtiquetasQRModal({ items, onClose }) {
   const sheetRef = useRef(null);
-  const [selected, setSelected] = useState(() => new Set(items.slice(0, 20).map(i => i.id)));
+  const [selected, setSelected] = useState(() => new Set(items.slice(0, 12).map(i => i.id)));
+  const [mode, setMode] = useState('qr'); // 'qr' | 'barcode' | 'card'
+  const [selQ, setSelQ] = useState('');
+  const [selCat, setSelCat] = useState('all');
+  const [onlySelected, setOnlySelected] = useState(false);
 
   const toggle = (id) => setSelected(prev => {
     const next = new Set(prev);
@@ -1228,8 +1286,87 @@ function InvEtiquetasQRModal({ items, onClose }) {
 
   const itemsToPrint = items.filter(i => selected.has(i.id));
 
-  // Con davidshimjs renderizamos QR directo en cada celda · no necesitamos data URLs
-  const generating = false; // obsoleto con nuevo pattern, compat con UI existente
+  // Categorías presentes en items + counts
+  const catList = useMemo(() => {
+    const m = {};
+    items.forEach(it => { m[it.categoria] = (m[it.categoria] || 0) + 1; });
+    return Object.entries(m).sort((a, b) => b[1] - a[1]);
+  }, [items]);
+
+  // Items filtrados en el selector
+  const filteredItems = useMemo(() => {
+    return items.filter(it => {
+      if (onlySelected && !selected.has(it.id)) return false;
+      if (selCat !== 'all' && it.categoria !== selCat) return false;
+      if (selQ.trim()) {
+        const q = selQ.toLowerCase();
+        return it.nombre.toLowerCase().includes(q) || it.codigo.toLowerCase().includes(q) || (it.marca || '').toLowerCase().includes(q);
+      }
+      return true;
+    });
+  }, [items, selQ, selCat, onlySelected, selected]);
+
+  // Bulk: aplica selección sobre el subconjunto visible
+  const selectVisible = () => setSelected(prev => {
+    const next = new Set(prev);
+    filteredItems.forEach(it => next.add(it.id));
+    return next;
+  });
+  const deselectVisible = () => setSelected(prev => {
+    const next = new Set(prev);
+    filteredItems.forEach(it => next.delete(it.id));
+    return next;
+  });
+
+  // Paginación preview · render todas las páginas con divisor visual
+  const itemsPerPage = mode === 'barcode' ? 12 : 9;
+  const totalPages = Math.max(1, Math.ceil(itemsToPrint.length / itemsPerPage));
+  const pages = [];
+  for (let i = 0; i < itemsToPrint.length; i += itemsPerPage) {
+    pages.push(itemsToPrint.slice(i, i + itemsPerPage));
+  }
+
+  // Print CSS común · oculta divisor "Página X de Y" + page-break entre páginas
+  const COMMON_CSS = `
+    /* Solo bara visible en preview, oculta en print */
+    .etq-page > div:first-child { display: none !important; }
+    .etq-page { page-break-after: always; break-after: page; }
+    .etq-page:last-child { page-break-after: auto; break-after: auto; }
+    .etq-grid { width: 100%; }
+  `;
+  const PRINT_CSS = {
+    qr: COMMON_CSS + `
+      .etq-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4mm; }
+      .etq-item { border: 1px dashed #bbb; padding: 5mm 4mm; text-align: center; page-break-inside: avoid; break-inside: avoid; min-height: 60mm; }
+      .etq-qr { width: 36mm; height: 36mm; margin: 0 auto 2mm; display: block; }
+      .etq-codigo { font-family: 'JetBrains Mono', monospace; font-size: 11pt; font-weight: 700; margin: 2mm 0; }
+      .etq-nombre { font-size: 9pt; color: #333; line-height: 1.2; min-height: 24pt; padding: 0 1mm; }
+      .etq-empresa { font-size: 7pt; color: #999; margin-top: 2mm; font-family: 'JetBrains Mono', monospace; letter-spacing: 1pt; text-transform: uppercase; }
+    `,
+    barcode: COMMON_CSS + `
+      .etq-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 3mm; }
+      .etq-item { border: 1px dashed #bbb; padding: 4mm 5mm; page-break-inside: avoid; break-inside: avoid; }
+      .etq-bc-row1 { display: flex; align-items: baseline; gap: 4mm; margin-bottom: 1.5mm; }
+      .etq-bc-codigo { font-family: 'JetBrains Mono', monospace; font-size: 11pt; font-weight: 700; }
+      .etq-bc-nombre { font-size: 8.5pt; color: #333; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .etq-bc-svg { width: 100%; height: 14mm; display: block; margin: 1mm 0; }
+      .etq-bc-foot { display: flex; justify-content: space-between; font-size: 7pt; color: #888; font-family: 'JetBrains Mono', monospace; letter-spacing: 0.5pt; text-transform: uppercase; margin-top: 1mm; }
+    `,
+    card: COMMON_CSS + `
+      .etq-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 3mm; }
+      .etq-item { border: 1px solid #ddd; border-left: 4px solid var(--cat-color, #888); padding: 4mm; page-break-inside: avoid; break-inside: avoid; min-height: 56mm; display: flex; flex-direction: column; gap: 2mm; }
+      .etq-card-h { display: flex; justify-content: space-between; align-items: baseline; }
+      .etq-card-codigo { font-family: 'JetBrains Mono', monospace; font-size: 9pt; font-weight: 700; color: #555; }
+      .etq-card-cat { font-size: 6.5pt; padding: 1mm 2mm; border-radius: 2mm; background: var(--cat-color-soft, #eee); color: var(--cat-color, #555); font-family: 'JetBrains Mono', monospace; text-transform: uppercase; letter-spacing: 0.4pt; }
+      .etq-card-nombre { font-size: 10pt; font-weight: 600; line-height: 1.25; }
+      .etq-card-meta { font-size: 7.5pt; color: #555; line-height: 1.5; }
+      .etq-card-meta b { color: #222; }
+      .etq-card-foot { margin-top: auto; display: flex; justify-content: space-between; align-items: center; padding-top: 2mm; border-top: 1px solid #eee; font-size: 7pt; }
+      .etq-card-mini-bc { width: 40mm; height: 8mm; }
+    `,
+  };
+
+  const titleByMode = { qr: 'QR · 9 por hoja', barcode: 'Código de barras · 12 por hoja', card: 'Card detallada · 9 por hoja' };
 
   const handlePrint = () => {
     if (!sheetRef.current) return;
@@ -1237,17 +1374,11 @@ function InvEtiquetasQRModal({ items, onClose }) {
     const iframe = document.createElement('iframe');
     iframe.style.cssText = 'position:fixed;right:-9999px;bottom:-9999px;width:0;height:0;border:0;';
     document.body.appendChild(iframe);
-    const fullHTML = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Etiquetas QR</title>
+    const fullHTML = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Etiquetas — ${titleByMode[mode]}</title>
       <style>
-        body { margin: 0; font-family: Inter, sans-serif; }
-        .etq-sheet { padding: 0; }
-        .etq-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0; }
-        .etq-item { border: 1px dashed #999; padding: 8mm; text-align: center; page-break-inside: avoid; }
-        .etq-qr { width: 36mm; height: 36mm; margin: 0 auto 3mm; display: block; }
-        .etq-codigo { font-family: JetBrains Mono, monospace; font-size: 11pt; font-weight: 700; margin-bottom: 2mm; }
-        .etq-nombre { font-size: 9pt; color: #333; line-height: 1.2; min-height: 24pt; }
-        .etq-empresa { font-size: 7pt; color: #999; margin-top: 2mm; font-family: JetBrains Mono, monospace; letter-spacing: 1pt; text-transform: uppercase; }
         @page { size: A4; margin: 10mm; }
+        body { margin: 0; font-family: Inter, system-ui, sans-serif; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+        ${PRINT_CSS[mode]}
       </style></head><body>${sheetHTML}</body></html>`;
     const doc = iframe.contentDocument || iframe.contentWindow.document;
     doc.open();
@@ -1264,18 +1395,22 @@ function InvEtiquetasQRModal({ items, onClose }) {
 
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-box" style={{ width: 960, maxWidth: '96vw', maxHeight: '94vh', padding: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column' }} onClick={e => e.stopPropagation()}>
-        <div style={{ padding: '14px 20px', borderBottom: '1px solid var(--line)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--bg-elev)' }}>
+      <div className="modal-box" style={{ width: 1100, maxWidth: '98vw', maxHeight: '95vh', padding: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column' }} onClick={e => e.stopPropagation()}>
+        <div style={{ padding: '12px 20px', borderBottom: '1px solid var(--line)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--bg-elev)' }}>
           <div>
-            <div style={{ fontWeight: 700, fontSize: 14 }}>Imprimir etiquetas QR</div>
+            <div style={{ fontWeight: 700, fontSize: 14 }}>Imprimir etiquetas inventario</div>
             <div className="text-xs muted" style={{ marginTop: 2 }}>
-              {itemsToPrint.length} etiquetas seleccionadas · 20 por hoja A4
-              {generating && <span style={{ marginLeft: 8, color: 'var(--accent)' }}>● Generando QRs...</span>}
+              {itemsToPrint.length} etiquetas · {titleByMode[mode]}
             </div>
           </div>
           <div className="hstack" style={{ gap: 6 }}>
-            <button className="tb-btn" onClick={selectAll}>Seleccionar todos ({items.length})</button>
-            <button className="tb-btn" onClick={clearAll}>Quitar todos</button>
+            <div className="tw-seg" style={{ marginRight: 8 }}>
+              <button className={mode === 'qr' ? 'on' : ''} onClick={() => setMode('qr')}>QR</button>
+              <button className={mode === 'barcode' ? 'on' : ''} onClick={() => setMode('barcode')}>Barcode</button>
+              <button className={mode === 'card' ? 'on' : ''} onClick={() => setMode('card')}>Card</button>
+            </div>
+            <button className="tb-btn" onClick={selectAll}>Todos ({items.length})</button>
+            <button className="tb-btn" onClick={clearAll}>Quitar</button>
             <button className="tb-btn primary" disabled={itemsToPrint.length === 0} onClick={handlePrint}>
               {Icon.download({ size: 13 })} Imprimir ({itemsToPrint.length})
             </button>
@@ -1283,33 +1418,178 @@ function InvEtiquetasQRModal({ items, onClose }) {
           </div>
         </div>
 
-        <div style={{ flex: 1, overflow: 'auto', padding: 20, background: 'var(--bg)', display: 'grid', gridTemplateColumns: '300px 1fr', gap: 20 }}>
-          {/* Selector */}
-          <div style={{ borderRight: '1px solid var(--line)', paddingRight: 14, maxHeight: '70vh', overflowY: 'auto' }}>
-            <div style={{ fontSize: 10, color: 'var(--ink-3)', fontFamily: 'var(--mono)', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600, marginBottom: 8 }}>Selecciona ítems</div>
-            {items.map(it => (
-              <label key={it.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 0', cursor: 'pointer', fontSize: 11 }}>
-                <input type="checkbox" checked={selected.has(it.id)} onChange={() => toggle(it.id)} />
-                <span className="mono text-xs" style={{ width: 80, color: 'var(--ink-3)' }}>{it.codigo}</span>
-                <span style={{ flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{it.nombre}</span>
+        <div style={{ flex: 1, overflow: 'hidden', padding: 16, background: 'var(--bg)', display: 'grid', gridTemplateColumns: '320px 1fr', gap: 16 }}>
+          {/* Selector ítems · con filtros */}
+          <div style={{ borderRight: '1px solid var(--line)', paddingRight: 12, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+            <div style={{ fontSize: 10, color: 'var(--ink-3)', fontFamily: 'var(--mono)', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600, marginBottom: 8, display: 'flex', justifyContent: 'space-between' }}>
+              <span>Selecciona ítems</span>
+              <span style={{ color: 'var(--accent)' }}>{selected.size} de {items.length}</span>
+            </div>
+
+            {/* Search · inline para no heredar flex-grow del topbar */}
+            <div style={{ position: 'relative', marginBottom: 8, flexShrink: 0 }}>
+              <span style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--ink-4)', pointerEvents: 'none', display: 'inline-flex' }}>
+                {Icon.search({ size: 12 })}
+              </span>
+              <input
+                value={selQ}
+                onChange={e => setSelQ(e.target.value)}
+                placeholder="Buscar código, nombre, marca..."
+                style={{
+                  width: '100%', padding: '6px 10px 6px 28px',
+                  fontSize: 11, border: '1px solid var(--line)', borderRadius: 6,
+                  background: 'var(--bg-elev)', color: 'var(--ink)',
+                  boxSizing: 'border-box', outline: 'none', height: 28,
+                }}
+              />
+            </div>
+
+            {/* Category chips · scroll horizontal */}
+            <div style={{ display: 'flex', gap: 4, overflowX: 'auto', paddingBottom: 4, marginBottom: 8 }}>
+              <button
+                onClick={() => setSelCat('all')}
+                style={{
+                  padding: '3px 9px', borderRadius: 12, fontSize: 10, fontWeight: 600,
+                  border: '1px solid ' + (selCat === 'all' ? 'var(--ink)' : 'var(--line)'),
+                  background: selCat === 'all' ? 'var(--ink)' : 'var(--bg-elev)',
+                  color: selCat === 'all' ? '#fff' : 'var(--ink-2)',
+                  cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0,
+                }}
+              >Todas</button>
+              {catList.map(([cat, count]) => {
+                const active = selCat === cat;
+                const color = categoriaColor(cat);
+                return (
+                  <button
+                    key={cat}
+                    onClick={() => setSelCat(active ? 'all' : cat)}
+                    style={{
+                      padding: '3px 9px', borderRadius: 12, fontSize: 10, fontWeight: 600,
+                      border: '1px solid ' + (active ? color : 'var(--line)'),
+                      background: active ? color : 'var(--bg-elev)',
+                      color: active ? '#fff' : 'var(--ink-2)',
+                      cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0,
+                    }}
+                  >{cat.split(' ')[0]} <span style={{ opacity: 0.7, fontSize: 9 }}>{count}</span></button>
+                );
+              })}
+            </div>
+
+            {/* Bulk acciones del subset visible */}
+            <div className="hstack" style={{ gap: 6, marginBottom: 8, fontSize: 11 }}>
+              <button onClick={selectVisible} className="tb-btn" style={{ fontSize: 10, padding: '3px 8px', height: 24 }} disabled={filteredItems.length === 0}>
+                + Marcar {filteredItems.length}
+              </button>
+              <button onClick={deselectVisible} className="tb-btn" style={{ fontSize: 10, padding: '3px 8px', height: 24 }} disabled={filteredItems.length === 0}>
+                − Quitar
+              </button>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 10, color: 'var(--ink-3)', cursor: 'pointer', marginLeft: 'auto' }}>
+                <input type="checkbox" checked={onlySelected} onChange={e => setOnlySelected(e.target.checked)} />
+                solo seleccionados
               </label>
-            ))}
+            </div>
+
+            {/* Lista filtrada */}
+            <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
+              {filteredItems.length === 0 && (
+                <div style={{ fontSize: 11, color: 'var(--ink-4)', textAlign: 'center', padding: 20 }}>
+                  Sin ítems que coincidan
+                </div>
+              )}
+              {filteredItems.map(it => (
+                <label key={it.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 4px', cursor: 'pointer', fontSize: 11, borderRadius: 4 }}>
+                  <input type="checkbox" checked={selected.has(it.id)} onChange={() => toggle(it.id)} />
+                  <span className="mono text-xs" style={{ width: 80, color: 'var(--ink-3)', flexShrink: 0 }}>{it.codigo}</span>
+                  <span style={{ flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{it.nombre}</span>
+                </label>
+              ))}
+            </div>
           </div>
 
-          {/* Preview */}
-          <div ref={sheetRef} className="etq-sheet" style={{ background: '#fff', padding: 12, minHeight: 400, borderRadius: 4, boxShadow: 'var(--shadow-sm)' }}>
-            <div className="etq-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)' }}>
-              {itemsToPrint.map(it => (
-                <div key={it.id} className="etq-item" style={{ border: '1px dashed #999', padding: 8, textAlign: 'center' }}>
-                  <InvQRCell url={BASE_URL_QR + it.codigo} size={90} />
-                  <div className="etq-codigo" style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, fontWeight: 700, color: '#000', marginTop: 4 }}>{it.codigo}</div>
-                  <div className="etq-nombre" style={{ fontSize: 8, color: '#333', lineHeight: 1.2, minHeight: 20 }}>{it.nombre.slice(0, 40)}</div>
-                  <div className="etq-empresa" style={{ fontSize: 7, color: '#999', marginTop: 4, fontFamily: 'JetBrains Mono, monospace', letterSpacing: 1, textTransform: 'uppercase' }}>MMHIGHMETRIK</div>
+          {/* Preview · todas las páginas con divisor */}
+          <div style={{ overflow: 'auto', display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'center', minHeight: 0, paddingBottom: 20 }}>
+            {itemsToPrint.length === 0 && (
+              <div style={{ fontSize: 12, color: 'var(--ink-4)', textAlign: 'center', padding: 40 }}>
+                Selecciona al menos un ítem para ver la vista previa
+              </div>
+            )}
+
+            <div ref={sheetRef} style={{ width: '100%', maxWidth: 760, display: 'flex', flexDirection: 'column', gap: 14 }}>
+              {pages.map((pageItems, pageIdx) => (
+                <div key={pageIdx} className="etq-page" style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 9, color: 'var(--ink-4)', fontFamily: 'var(--mono)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                    <span>Página {pageIdx + 1} de {totalPages}</span>
+                    <div style={{ flex: 1, height: 1, background: 'var(--line)' }} />
+                    <span>A4 · {pageItems.length} de {itemsPerPage}</span>
+                  </div>
+                  <div className="etq-grid" style={{
+                    display: 'grid',
+                    gridTemplateColumns: mode === 'barcode' ? 'repeat(2, minmax(0, 1fr))' : 'repeat(3, minmax(0, 1fr))',
+                    gap: mode === 'qr' ? 12 : 10,
+                  }}>
+                    {/* Modo QR */}
+                    {mode === 'qr' && pageItems.map(it => (
+                      <div key={it.id} className="etq-item" style={{ border: '1px dashed #bbb', padding: '14px 10px', textAlign: 'center', minHeight: 220, minWidth: 0, overflow: 'hidden', boxSizing: 'border-box' }}>
+                        <InvQRCell url={BASE_URL_QR + it.codigo} size={120} />
+                        <div className="etq-codigo" style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 12, fontWeight: 700, color: '#000', margin: '8px 0 4px' }}>{it.codigo}</div>
+                        <div className="etq-nombre" style={{ fontSize: 10, color: '#333', lineHeight: 1.2, minHeight: 26 }}>{it.nombre.slice(0, 50)}</div>
+                        <div className="etq-empresa" style={{ fontSize: 8, color: '#999', marginTop: 6, fontFamily: 'JetBrains Mono, monospace', letterSpacing: 1, textTransform: 'uppercase' }}>MMHIGHMETRIK</div>
+                      </div>
+                    ))}
+
+                    {/* Modo Barcode */}
+                    {mode === 'barcode' && pageItems.map(it => (
+                      <div key={it.id} className="etq-item" style={{ border: '1px dashed #bbb', padding: '10px 14px', minWidth: 0, overflow: 'hidden', boxSizing: 'border-box' }}>
+                        <div className="etq-bc-row1" style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginBottom: 4 }}>
+                          <span className="etq-bc-codigo" style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 13, fontWeight: 700 }}>{it.codigo}</span>
+                          <span className="etq-bc-nombre" style={{ fontSize: 10, color: '#333', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{it.nombre}</span>
+                        </div>
+                        <InvBarcodeCell value={it.codigo} className="etq-bc-svg" />
+                        <div className="etq-bc-foot" style={{ display: 'flex', justifyContent: 'space-between', fontSize: 8, color: '#888', fontFamily: 'JetBrains Mono, monospace', textTransform: 'uppercase', letterSpacing: 0.5, marginTop: 2 }}>
+                          <span>{it.marca || '—'}</span>
+                          <span>MMHIGHMETRIK</span>
+                        </div>
+                      </div>
+                    ))}
+
+                    {/* Modo Card */}
+                    {mode === 'card' && pageItems.map(it => {
+                      const ub = findUbicacion(it.ubicacionId);
+                      const resp = findPersonal(it.responsableId);
+                      const catColor = categoriaColor(it.categoria);
+                      const catSoft = catColor + '22';
+                      return (
+                        <div key={it.id} className="etq-item"
+                          style={{
+                            border: '1px solid #ddd', borderLeft: `4px solid ${catColor}`,
+                            padding: 10, minHeight: 200, display: 'flex', flexDirection: 'column', gap: 4,
+                            minWidth: 0, overflow: 'hidden', boxSizing: 'border-box',
+                            background: '#fff',
+                            '--cat-color': catColor, '--cat-color-soft': catSoft,
+                          }}>
+                          <div className="etq-card-h" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                            <span className="etq-card-codigo" style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, fontWeight: 700, color: '#555' }}>{it.codigo}</span>
+                            <span className="etq-card-cat" style={{ fontSize: 7, padding: '1px 5px', borderRadius: 3, background: catSoft, color: catColor, fontFamily: 'JetBrains Mono, monospace', textTransform: 'uppercase', letterSpacing: 0.4 }}>
+                              {it.categoria.split(' ')[0]}
+                            </span>
+                          </div>
+                          <div className="etq-card-nombre" style={{ fontSize: 11, fontWeight: 600, lineHeight: 1.25 }}>{it.nombre}</div>
+                          <div className="etq-card-meta" style={{ fontSize: 8.5, color: '#555', lineHeight: 1.4 }}>
+                            <div><b>{it.marca}</b> · {it.modelo || '—'}</div>
+                            {it.serie && it.serie !== '—' && <div>SN: {it.serie}</div>}
+                            <div>📍 {ub ? ub.nombre : '—'}</div>
+                            {resp && <div>👤 {resp.nombre}</div>}
+                          </div>
+                          <div className="etq-card-foot" style={{ marginTop: 'auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: 4, borderTop: '1px solid #eee', fontSize: 8 }}>
+                            <span style={{ color: '#999', fontFamily: 'JetBrains Mono, monospace', letterSpacing: 0.5, textTransform: 'uppercase' }}>MMHIGHMETRIK</span>
+                            <InvBarcodeCell value={it.codigo} className="etq-card-mini-bc" width={1.2} height={28} fontSize={0} margin={0} displayValue={false} />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
               ))}
-              {itemsToPrint.length === 0 && (
-                <div style={{ gridColumn: 'span 4', textAlign: 'center', padding: 40, color: '#999' }}>Selecciona al menos un ítem</div>
-              )}
             </div>
           </div>
         </div>
@@ -1345,6 +1625,50 @@ function InvQRCell({ url, size = 90 }) {
   }, [url, size]);
 
   return <div ref={ref} style={{ width: size, height: size, display: 'inline-block', background: '#F8F8F8' }} />;
+}
+
+// Componente Barcode inline · usa JsBarcode (Code128) renderizando SVG
+// Después del render, ajustamos viewBox + width:100% para que escale al container
+function InvBarcodeCell({ value, className, width = 1.6, height = 50, fontSize = 11, margin = 4, displayValue = true }) {
+  const ref = useRef(null);
+  useEffect(() => {
+    let cancelled = false;
+    let retries = 0;
+    const tryRender = () => {
+      if (cancelled) return;
+      if (!window.JsBarcode) {
+        if (retries++ < 30) setTimeout(tryRender, 100);
+        return;
+      }
+      if (!ref.current) return;
+      try {
+        window.JsBarcode(ref.current, String(value), {
+          format: 'CODE128',
+          width, height, fontSize, margin,
+          displayValue,
+          background: '#ffffff', lineColor: '#000000',
+          font: 'JetBrains Mono, monospace',
+        });
+        // Forzar SVG responsive: viewBox + width 100% + preserveAspectRatio
+        const svg = ref.current;
+        if (svg) {
+          const w = svg.getAttribute('width');
+          const h = svg.getAttribute('height');
+          if (w && h) svg.setAttribute('viewBox', `0 0 ${w} ${h}`);
+          svg.removeAttribute('width');
+          svg.removeAttribute('height');
+          svg.setAttribute('preserveAspectRatio', 'none');
+          svg.style.width = '100%';
+          svg.style.height = displayValue ? (height + fontSize + 6) + 'px' : height + 'px';
+          svg.style.display = 'block';
+        }
+      } catch (e) { /* ignore */ }
+    };
+    tryRender();
+    return () => { cancelled = true; };
+  }, [value, width, height, fontSize, margin, displayValue]);
+
+  return <svg ref={ref} className={className} style={{ display: 'block', width: '100%', maxWidth: '100%' }} />;
 }
 
 function InvFField({ label, hint, children }) {

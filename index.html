@@ -29,13 +29,19 @@
   }
 </script>
 
+<!-- SheetJS · lectura de Excel (cotizaciones multi-hoja) -->
+<script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+
+<!-- JsBarcode · genera códigos de barras (Code128) para etiquetas inventario -->
+<script src="https://unpkg.com/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
+
 
 <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
 <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
 <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 <script>
   window.ANTHROPIC_KEY = "";
-  window.SEACE_API = "https://seace-scraper-api.vercel.app";
+  window.SEACE_API = "http://localhost:3000";
 </script>
 
 <style>
@@ -109,9 +115,11 @@
 <script type="text/babel" src="src/modules/dashboard/KpiOperativosModal.jsx"></script>
 <script type="text/babel" src="src/modules/dashboard/ProjectDetail.jsx"></script>
 <script type="text/babel" src="src/modules/licitaciones/LicitacionesPage.jsx"></script>
+<script type="text/babel" src="src/modules/seace/EmpresaModal.jsx"></script>
 <script type="text/babel" src="src/modules/seace/SeacePage.jsx"></script>
 <script type="text/babel" src="src/modules/proyectos/ProyectosPage.jsx"></script>
 <script type="text/babel" src="src/modules/presupuesto/PresupuestoPage.jsx"></script>
+<script src="src/modules/presupuesto/cotizacionParser.js"></script>
 <script type="text/babel" src="src/modules/presupuesto/ComparadorPage.jsx"></script>
 <script src="src/modules/presupuesto/ganttParser.js"></script>
 <script type="text/babel" src="src/modules/presupuesto/GanttPage.jsx"></script>

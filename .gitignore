@@ -1,6 +1,29 @@
-﻿.claude/
+.claude/
 node_modules/
 .DS_Store
 *.log
 .env
 .env.local
+
+# Backend secrets · NUNCA subir a git (tiene password NAS)
+erp-nas-backend/config.json
+erp-nas-backend/node_modules/
+
+# Local dev
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+
+# Build artifacts
+dist/
+build/
+.cache/
+
+# OS
+*.tmp
+*.bak
+npm-debug.log*
+
+# Uploads runtime (archivos subidos en demo · no versionar)
+uploads/

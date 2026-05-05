@@ -331,7 +331,7 @@ function GanttViewer({ cotizacion, data, loading, errorMsg, onBack }) {
         <div className="card" style={{ padding: 20, borderLeft: '4px solid var(--warn)' }}>
           <div className="hstack between" style={{ marginBottom: 10 }}>
             <h3 style={{ margin: 0 }}>Cronograma no disponible</h3>
-            <button className="tb-btn" onClick={onBack}>← Volver</button>
+            {onBack && <button className="tb-btn" onClick={onBack}>← Volver</button>}
           </div>
           <div style={{ fontSize: 13, color: 'var(--ink-2)' }}>{errorMsg}</div>
         </div>
@@ -366,7 +366,7 @@ function GanttViewer({ cotizacion, data, loading, errorMsg, onBack }) {
       <div style={{ padding: '14px 20px 12px', borderBottom: '1px solid var(--line)', background: 'var(--bg-elev)', flexShrink: 0 }}>
         <div className="hstack between" style={{ marginBottom: 10, gap: 10, flexWrap: 'wrap' }}>
           <div className="hstack" style={{ gap: 10, minWidth: 0, flex: 1 }}>
-            <button className="tb-icon-btn" onClick={onBack} title="Volver a cotizaciones">{Icon.left({ size: 14 })}</button>
+            {onBack && <button className="tb-icon-btn" onClick={onBack} title="Volver a cotizaciones">{Icon.left({ size: 14 })}</button>}
             <div style={{ minWidth: 0 }}>
               <div className="hstack" style={{ gap: 8, marginBottom: 2 }}>
                 <span className="mono text-xs" style={{ color: 'var(--ink-3)', fontWeight: 700 }}>{cotizacion.id}</span>
@@ -517,8 +517,8 @@ function GanttCanvas({ tasks, allTasks, project, mode, zoom, expandedUIDs, toggl
     <div style={{ display: 'flex', flex: 1, minWidth: 0 }}>
       <div style={{ width: SIDEBAR_WIDTH, borderRight: '1px solid var(--line)', background: 'var(--bg-elev)', flexShrink: 0, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
         <div style={{ height: 56, borderBottom: '1px solid var(--line)', background: 'var(--bg-sunken)', display: 'flex', alignItems: 'center', padding: '0 12px', gap: 8, fontSize: 10, fontFamily: 'var(--mono)', color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600, flexShrink: 0 }}>
-          <span style={{ width: 30 }}>ID</span>
-          <span style={{ flex: 1 }}>Tarea · WBS</span>
+          <span style={{ width: 58 }}>WBS</span>
+          <span style={{ flex: 1 }}>Tarea</span>
           <span style={{ width: 46, textAlign: 'right' }}>Dur.</span>
           <span style={{ width: 28, textAlign: 'center' }}>%</span>
         </div>
@@ -641,7 +641,7 @@ function TaskRow({ task, expanded, hasChildren, toggleExpand, selected, onSelect
       >
         {hasChildren ? (expanded ? '▾' : '▸') : ''}
       </span>
-      <span className="mono" style={{ width: 28, fontSize: 10, color: 'var(--ink-4)' }}>{task.id}</span>
+      <span className="mono" style={{ width: 56, fontSize: 10, color: 'var(--ink-4)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{task.outlineNumber || task.id}</span>
       <span style={{ flex: 1, fontWeight: task.summary ? 700 : 500, color: task.summary ? 'var(--ink)' : 'var(--ink-2)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={task.name}>
         {task.milestone && '♦ '}
         {task.name}
@@ -977,3 +977,4 @@ function buildGridMarks(startDate, endDate, zoom, pxPerDay) {
 }
 
 window.GanttPage = GanttPage;
+window.GanttViewer = GanttViewer;
